@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -8,19 +8,117 @@ import {
   CartesianGrid,
   Tooltip
 } from 'recharts';
-import KpiGrid from '../components/KpiGrid';
-import KpiCard from '../components/KpiCard';
-import ChartCard from '../components/ChartCard';
+import KpiGrid from '../components/ui/KpiGrid';
+import KpiCard from '../components/ui/KpiCard';
+import ChartCard from '../components/charts/ChartCard';
 import { DEMO_PERSONAL_FOOTPRINT } from '../data/mockData';
+import { useAuth } from '../hooks/useAuth';
+import DatasetSubmission from '../components/datasets/DatasetSubmission';
+import { createActivity, listActivities } from '../services/activityService';
 
 export default function Dashboard() {
+  const { profile } = useAuth();
   const [demoConnected, setDemoConnected] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+  const [activityError, setActivityError] = useState('');
+  const [showActivityForm, setShowActivityForm] = useState(false);
+  const [savingActivity, setSavingActivity] = useState(false);
 
-  const data = demoConnected ? DEMO_PERSONAL_FOOTPRINT : null;
+  const loadActivities = useCallback(async () => {
+    try {
+      setActivityError('');
+      setActivities(await listActivities());
+    } catch (error) {
+      setActivityError(error.message || 'Unable to load your activities.');
+    } finally {
+      setLoadingActivities(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadActivities();
+  }, [loadActivities]);
+
+  const activityData = useMemo(() => {
+    if (!activities.length) return null;
+    const totalKg = activities.reduce((sum, activity) => sum + Number(activity.co2_emission), 0);
+    const categoryTotals = activities.reduce((totals, activity) => {
+      const category = activity.category || 'Other';
+      totals[category] = (totals[category] || 0) + Number(activity.co2_emission);
+      return totals;
+    }, {});
+    const sources = Object.entries(categoryTotals).map(([label, value]) => ({
+      label,
+      percentage: totalKg ? Math.round((value / totalKg) * 100) : 0,
+      value: `${value.toFixed(1)} kg`,
+    }));
+    const monthlyTotals = activities.reduce((totals, activity) => {
+      const month = activity.activity_date.slice(0, 7);
+      totals[month] = (totals[month] || 0) + Number(activity.co2_emission);
+      return totals;
+    }, {});
+    const trend = Object.entries(monthlyTotals)
+      .sort(([first], [second]) => first.localeCompare(second))
+      .slice(-12)
+      .map(([month, emissions]) => ({
+        month: new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: '2-digit' }),
+        emissions: Number(emissions.toFixed(2)),
+      }));
+    const sortedCategories = Object.entries(categoryTotals).sort(([, first], [, second]) => second - first);
+    const sortedMonths = Object.entries(monthlyTotals).sort(([first], [second]) => first.localeCompare(second));
+    const previousMonth = sortedMonths.at(-2)?.[1];
+    const latestMonth = sortedMonths.at(-1)?.[1];
+    const monthlyChange = previousMonth
+      ? `${(((latestMonth - previousMonth) / previousMonth) * 100).toFixed(0)}%`
+      : null;
+
+    return {
+      total: (totalKg / 1000).toFixed(2),
+      monthlyChange,
+      largestSource: sortedCategories[0]?.[0] || 'Other',
+      largestSourcePercentage: totalKg ? Math.round((sortedCategories[0]?.[1] / totalKg) * 100) : 0,
+      activities: activities.slice(0, 10).map((activity) => ({
+        name: activity.activity_name,
+        type: `${activity.category} · ${activity.activity_date}`,
+        delta: `${Number(activity.co2_emission).toFixed(1)} kg CO₂e`,
+      })),
+      sources,
+      trend,
+    };
+  }, [activities]);
+
+  const data = activityData || (demoConnected ? DEMO_PERSONAL_FOOTPRINT : null);
   const hasData = !!data;
 
   const handleToggleDemo = () => {
     setDemoConnected(!demoConnected);
+  };
+
+  const handleCreateActivity = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(event.currentTarget);
+    setSavingActivity(true);
+    setActivityError('');
+    try {
+      await createActivity({
+        user_id: profile.id,
+        category: formData.get('category'),
+        activity_name: formData.get('activity_name').trim(),
+        amount: Number(formData.get('amount')),
+        unit: formData.get('unit').trim(),
+        co2_emission: Number(formData.get('co2_emission')),
+        activity_date: formData.get('activity_date'),
+      });
+      form.reset();
+      setShowActivityForm(false);
+      await loadActivities();
+    } catch (error) {
+      setActivityError(error.message || 'Unable to save this activity.');
+    } finally {
+      setSavingActivity(false);
+    }
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -53,35 +151,78 @@ export default function Dashboard() {
             Track and manage your individual carbon footprint
           </p>
         </div>
-        <button onClick={handleToggleDemo} className="demo-connect-btn">
-          {demoConnected ? "🔌 Disconnect Demo Profile" : "🔌 Connect Demo Profile"}
-        </button>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button onClick={() => setShowActivityForm(!showActivityForm)} className="btn btn-primary">
+            + Add activity
+          </button>
+          <button onClick={handleToggleDemo} className="demo-connect-btn">
+            {demoConnected ? "🔌 Disconnect Demo Profile" : "🔌 Connect Demo Profile"}
+          </button>
+        </div>
       </div>
+
+      {activityError && <p role="alert" style={{ marginBottom: '16px' }}>{activityError}</p>}
+      {showActivityForm && (
+        <form className="chart-card login-form" onSubmit={handleCreateActivity} style={{ marginBottom: '24px' }}>
+          <h3>Log a carbon activity</h3>
+          <div className="form-field">
+            <label htmlFor="activity-category">Category</label>
+            <input id="activity-category" name="category" className="text-input" required maxLength={100} placeholder="Transport, Energy, Food…" />
+          </div>
+          <div className="form-field">
+            <label htmlFor="activity-name">Activity</label>
+            <input id="activity-name" name="activity_name" className="text-input" required maxLength={200} />
+          </div>
+          <div className="form-field">
+            <label htmlFor="activity-amount">Amount</label>
+            <input id="activity-amount" name="amount" className="text-input" type="number" min="0" step="any" required />
+          </div>
+          <div className="form-field">
+            <label htmlFor="activity-unit">Unit</label>
+            <input id="activity-unit" name="unit" className="text-input" required maxLength={50} placeholder="km, kWh, kg…" />
+          </div>
+          <div className="form-field">
+            <label htmlFor="activity-emission">CO₂ emission (kg CO₂e)</label>
+            <input id="activity-emission" name="co2_emission" className="text-input" type="number" min="0" step="any" required />
+          </div>
+          <div className="form-field">
+            <label htmlFor="activity-date">Activity date</label>
+            <input id="activity-date" name="activity_date" className="text-input" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={savingActivity}>
+            {savingActivity ? 'Saving…' : 'Save activity'}
+          </button>
+        </form>
+      )}
 
       {/* KPI Cards */}
       <KpiGrid>
         <KpiCard
           title="Personal Footprint"
           value={hasData ? `${data.total} t` : null}
-          desc={hasData ? "Annual emission estimate" : null}
+          desc={activities.length ? "Sum of logged activity estimates" : hasData ? "Annual emission estimate" : null}
           isEmpty={!hasData}
         />
         <KpiCard
           title="Monthly Change"
-          value={hasData ? "-8%" : null}
-          desc={hasData ? "vs. previous month" : null}
+          value={activities.length ? activityData.monthlyChange : hasData ? "-8%" : null}
+          desc={activities.length
+            ? activityData.monthlyChange ? "vs. previous logged month" : "Needs two months of activity"
+            : hasData ? "vs. previous month" : null}
           isEmpty={!hasData}
         />
         <KpiCard
           title="Largest Source"
-          value={hasData ? "Transport" : null}
-          desc={hasData ? "42% of total emissions" : null}
+          value={activities.length ? activityData.largestSource : hasData ? "Transport" : null}
+          desc={activities.length
+            ? `${activityData.largestSourcePercentage}% of logged emissions`
+            : hasData ? "42% of total emissions" : null}
           isEmpty={!hasData}
         />
         <KpiCard
           title="Activities Logged"
-          value={hasData ? `${data.activities.length}` : "0"}
-          desc={hasData ? "Total logged records" : "No records tracked"}
+          value={activities.length ? `${activities.length}` : hasData ? `${data.activities.length}` : "0"}
+          desc={activities.length || hasData ? "Total logged records" : loadingActivities ? "Loading records…" : "No records tracked"}
           isEmpty={!hasData}
         />
       </KpiGrid>
@@ -175,7 +316,21 @@ export default function Dashboard() {
               <p>Recently tracked footprint activities</p>
             </div>
           </div>
-          {hasData ? (
+          {activities.length ? (
+            <ul className="activity-list">
+              {activities.slice(0, 10).map((activity) => (
+                <li key={activity.id}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{activity.activity_name}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {activity.category} · {activity.amount} {activity.unit} · {activity.activity_date}
+                    </span>
+                  </div>
+                  <b>{Number(activity.co2_emission).toFixed(1)} kg CO₂e</b>
+                </li>
+              ))}
+            </ul>
+          ) : hasData ? (
             <ul className="activity-list">
               {data.activities.map((act, idx) => (
                 <li key={idx}>
@@ -196,7 +351,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          <button className="add-activity-btn" style={{ marginTop: '24px' }}>
+          <button className="add-activity-btn" style={{ marginTop: '24px' }} onClick={() => setShowActivityForm(!showActivityForm)}>
             + Add activity
           </button>
         </div>
@@ -244,6 +399,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <DatasetSubmission userId={profile.id} />
     </div>
   );
 }

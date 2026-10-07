@@ -7,14 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+node_modules/
+dist/
+dist-ssr/
 *.local
-coverage
+coverage/
 .env
 .env.*
 !.env.example
+.env.local
+.env.*.local
 trustc.zip
 
 # Editor directories and files

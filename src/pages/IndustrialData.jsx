@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import SectionHeading from '../components/SectionHeading';
-import KpiGrid from '../components/KpiGrid';
-import KpiCard from '../components/KpiCard';
-import EmissionsTrend from '../components/EmissionsTrend';
-import RegionalChart from '../components/RegionalChart';
-import ComparisonChart from '../components/ComparisonChart';
+import SectionHeading from '../components/ui/SectionHeading';
+import KpiGrid from '../components/ui/KpiGrid';
+import KpiCard from '../components/ui/KpiCard';
+import EmissionsTrend from '../components/charts/EmissionsTrend';
+import RegionalChart from '../components/charts/RegionalChart';
+import ComparisonChart from '../components/charts/ComparisonChart';
 import DataTable from '../components/DataTable';
 import DataSources from '../components/DataSources';
 

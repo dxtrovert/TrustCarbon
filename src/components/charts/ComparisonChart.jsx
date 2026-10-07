@@ -92,7 +92,7 @@ export default function ComparisonChart({ data, loading = false, error = false }
         ) : (
           <div className="comparison-result-info">
             <h4>{selectedEntity.name}</h4>
-            <div className="sub">{selectedEntity.region} — Latest Data ({selectedYear})</div>
+            <div className="sub">{selectedEntity.region}, latest data ({selectedYear})</div>
             
             <div className="comparison-metrics">
               <div className="comparison-metric">
