@@ -115,23 +115,5 @@ Use a configured Supabase project and the local app to exercise the end-to-end w
 3. Promote a second account to admin using the SQL above. Log in as that account, open `/admin`, download a pending CSV, approve one submission and reject another with a reason. Verify review status, reviewer, and timestamp in `public.datasets`.
 4. Verify the normal user cannot open `/admin`, review a dataset, read another user's activity, or update `profiles.role`. RLS protects these operations even when requests are made outside the app.
 
-The app's sign-up/login/logout, activity, upload, and review paths require a live Supabase project to fully exercise; the local build and lint checks do not substitute for that integration test.
 
-## Data sources
 
-The checked-in files under `src/data/` include country-level CO₂ emissions (`Carbon_(CO2)_Emissions_by_Country.csv`, 1990 to 2019) and India state-level per-capita emissions (`rawIndiaData.csv`, a single-period snapshot), along with derived JavaScript datasets and transformations in `realData.js`. `public/data/industry_demo.csv` contains 90 illustrative values for six sectors from 2010 to 2024. It is labelled demo data, is not verified, and is not official TrustCarbon emissions data. Demo values must not be used as official figures. Source labels and coverage are displayed in the application; consult the dataset files and their original provider documentation for licensing, methodology, and attribution before redistribution or production use.
-
-The supplied India emissions file has no reporting year or total state emissions, so the map reports only available per-capita metrics and does not infer totals. The northern extent shown follows the selected Highcharts/OpenStreetMap admin-1 geometry; no disputed or neighboring territory is manually added or reassigned.
-
-The scripts in `scripts/` are legacy transcript/dataset extraction utilities. Some expect a transcript at a machine-specific local path, so they are not part of the clean-install application workflow.
-
-## Git workflow
-
-- `main` is the stable, demo-ready branch.
-- `develop` is the integration branch. Feature and fix work should branch from `develop`, then be reviewed and merged back into `develop`. Promote verified releases from `develop` to `main`.
-- Use focused names such as `feature/dataset-upload`, `fix/india-map`, or `refactor/module-structure`. Do not create a branch for every tiny change.
-- Commit messages use `type: short description`. Types: `feat` for functionality, `fix` for bug fixes, `refactor` for behavior-preserving structure changes, `style` for presentation, `docs` for documentation, `test` for tests, and `chore` for configuration or maintenance.
-- Keep commits focused. Examples: `refactor: organize service and UI modules`, `fix: correct India map state matching`, `docs: clarify local Supabase setup`.
-- `.gitignore` excludes dependencies, build output, and local environment files. Keep `.env.example` with placeholders and never commit `.env.local` or secret keys.
-
-The application uses Vite, React, and Oxlint as described above.
