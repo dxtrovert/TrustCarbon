@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { REGIONS } from '../data/realData';
+import { REGIONS, YEARS } from '../data/realData';
 
 export default function DataTable({ data }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [regionFilter, setRegionFilter] = useState('All');
+  const [yearFilter, setYearFilter] = useState('All');
   const [sortField, setSortField] = useState('entity');
   const [sortDirection, setSortDirection] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,6 +37,10 @@ export default function DataTable({ data }) {
       result = result.filter(item => item.region === regionFilter);
     }
 
+    if (yearFilter !== 'All') {
+      result = result.filter(item => item.year === Number(yearFilter));
+    }
+
     result.sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
@@ -46,7 +51,7 @@ export default function DataTable({ data }) {
     });
 
     return result;
-  }, [data, searchTerm, regionFilter, sortField, sortDirection]);
+  }, [data, searchTerm, regionFilter, yearFilter, sortField, sortDirection]);
 
   const totalPages = Math.max(1, Math.ceil(processedData.length / itemsPerPage));
   const paginatedData = useMemo(() => {
@@ -62,7 +67,13 @@ export default function DataTable({ data }) {
   return (
     <div className="table-card">
       <div className="table-header">
-        <h3>Carbon Data Table</h3>
+        <div>
+          <h3>Country emissions records</h3>
+          <p className="table-metadata">
+            {isEmpty ? 'No source records loaded' : `${data.length.toLocaleString()} records · ${REGIONS.length} regions · ${YEARS[0]} to ${YEARS[YEARS.length - 1]}`}
+            {' · '}Source: Carbon (CO₂) Emissions by Country CSV
+          </p>
+        </div>
 
         <div className="table-controls">
           <div className="table-search">
@@ -89,6 +100,19 @@ export default function DataTable({ data }) {
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
+
+          <select
+            value={yearFilter}
+            onChange={(e) => { setYearFilter(e.target.value); setCurrentPage(1); }}
+            className="select-input"
+            disabled={isEmpty}
+            aria-label="Filter by table year"
+          >
+            <option value="All">All Years</option>
+            {YEARS.slice().reverse().map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -106,21 +130,24 @@ export default function DataTable({ data }) {
                 Year<SortIcon field="year" />
               </th>
               <th style={{ cursor: 'pointer' }} onClick={() => !isEmpty && handleSort('emissions')}>
-                CO₂ (Mt)<SortIcon field="emissions" />
+                CO₂ emissions<SortIcon field="emissions" />
               </th>
+              <th>Unit</th>
               <th style={{ cursor: 'pointer' }} onClick={() => !isEmpty && handleSort('perCapita')}>
-                Per Capita (t)<SortIcon field="perCapita" />
+                Per capita<SortIcon field="perCapita" />
               </th>
+              <th>Unit</th>
+              <th>Source</th>
             </tr>
           </thead>
           <tbody>
             {isEmpty ? (
               <tr>
-                <td colSpan="5" className="table-empty-row">No data available.</td>
+                <td colSpan="8" className="table-empty-row">No data available.</td>
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan="5" className="table-empty-row">No records matched your filters.</td>
+                <td colSpan="8" className="table-empty-row">No records matched your filters.</td>
               </tr>
             ) : (
               paginatedData.map((row, idx) => (
@@ -129,7 +156,10 @@ export default function DataTable({ data }) {
                   <td>{row.region}</td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{row.year}</td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{row.emissions.toFixed(3)}</td>
+                  <td>Mt CO₂</td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{row.perCapita.toFixed(2)}</td>
+                  <td>t CO₂ / person</td>
+                  <td>Country emissions CSV</td>
                 </tr>
               ))
             )}
@@ -141,7 +171,7 @@ export default function DataTable({ data }) {
         <span>
           {isEmpty
             ? 'No entries'
-            : `Showing ${Math.min(processedData.length, (currentPage - 1) * itemsPerPage + 1)}–${Math.min(processedData.length, currentPage * itemsPerPage)} of ${processedData.length} entries`
+            : `Showing ${Math.min(processedData.length, (currentPage - 1) * itemsPerPage + 1)} to ${Math.min(processedData.length, currentPage * itemsPerPage)} of ${processedData.length} entries`
           }
         </span>
         <div style={{ display: 'flex', gap: '8px' }}>

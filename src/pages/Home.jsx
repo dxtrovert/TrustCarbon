@@ -3,20 +3,18 @@ import { useNavigate } from 'react-router-dom';
 
 // Components
 import Hero from '../components/Hero';
-import SectionHeading from '../components/SectionHeading';
-import KpiGrid from '../components/KpiGrid';
-import KpiCard from '../components/KpiCard';
-import EmissionsTrend from '../components/EmissionsTrend';
-import RegionalChart from '../components/RegionalChart';
+import SectionHeading from '../components/ui/SectionHeading';
+import EmissionsTrend from '../components/charts/EmissionsTrend';
+import RegionalChart from '../components/charts/RegionalChart';
 import CountryExplorer from '../components/CountryExplorer';
-import IndiaStateChart from '../components/IndiaStateChart';
+import IndiaStateChart from '../components/maps/IndiaStateChart';
 import DataTable from '../components/DataTable';
 import DataSources from '../components/DataSources';
 import PersonalTracker from '../components/PersonalTracker';
+import IndustryOverview from '../components/IndustryOverview';
 
 // Real data
 import {
-  KPI_DATA,
   EMISSIONS_TREND,
   REGIONAL_DATA,
   TABLE_DATA,
@@ -37,13 +35,13 @@ export default function Home({ isLoggedIn }) {
   return (
     <div className="home-page">
 
-      {/* ─── 1. HERO ─────────────────────────────────────────────────────── */}
+      {/* Overview */}
       <Hero
         onGlobalDataClick={scrollToGlobalData}
         onPersonalClick={scrollToPersonal}
       />
 
-      {/* ─── 2. GLOBAL CARBON DATA ───────────────────────────────────────── */}
+      {/* Global */}
       <section
         className="industrial-section"
         id="global-carbon-data"
@@ -51,40 +49,16 @@ export default function Home({ isLoggedIn }) {
         style={{ scrollMarginTop: '100px' }}
       >
         <SectionHeading
-          title="Global Carbon Data"
-          subtitle="Numbers derived directly from the Country CO₂ Emissions dataset. No estimates or projections."
+          title="Global emissions"
+          subtitle="Country and regional totals calculated from the supplied emissions records."
         />
 
-        <KpiGrid>
-          <KpiCard
-            title="Total Countries"
-            value={KPI_DATA.totalCountries.value}
-            desc={KPI_DATA.totalCountries.desc}
-          />
-          <KpiCard
-            title="Regions"
-            value={KPI_DATA.totalRegions.value}
-            desc={KPI_DATA.totalRegions.desc}
-          />
-          <KpiCard
-            title="Latest Data Year"
-            value={KPI_DATA.latestDataYear.value}
-            desc={KPI_DATA.latestDataYear.desc}
-          />
-          <KpiCard
-            title="Avg Per Capita"
-            value={KPI_DATA.avgPerCapita.value}
-            desc={KPI_DATA.avgPerCapita.desc}
-          />
-        </KpiGrid>
-
-        {/* Global trend chart */}
         <div style={{ marginBottom: '32px' }}>
           <EmissionsTrend data={EMISSIONS_TREND} />
         </div>
       </section>
 
-      {/* ─── 3. REGIONAL ANALYSIS ────────────────────────────────────────── */}
+      {/* Regional */}
       <section
         className="industrial-section"
         id="regional-analysis"
@@ -99,7 +73,7 @@ export default function Home({ isLoggedIn }) {
         </div>
       </section>
 
-      {/* ─── 4. COUNTRY EXPLORER ─────────────────────────────────────────── */}
+      {/* Country explorer */}
       <section
         className="industrial-section"
         id="country-explorer"
@@ -112,33 +86,51 @@ export default function Home({ isLoggedIn }) {
         <CountryExplorer />
       </section>
 
-      {/* ─── 5. INDIA STATE CARBON DATA ──────────────────────────────────── */}
+      {/* India */}
       <section
         className="industrial-section"
         id="india-states"
         style={{ scrollMarginTop: '100px', paddingTop: '0' }}
       >
         <SectionHeading
-          title="India State Carbon Data"
-          subtitle="Per-capita CO₂, CO and CH₄ emissions by Indian state from the CarbonEmissionIndia dataset."
+          title="India state emissions"
+          subtitle="A state-level snapshot of per-capita CO₂, CO and CH₄ values from the supplied India dataset."
         />
         <IndiaStateChart />
       </section>
 
-      {/* ─── 6. DATA TABLE ───────────────────────────────────────────────── */}
+      <section
+        className="industrial-section"
+        id="industries"
+        style={{ scrollMarginTop: '100px', paddingTop: '0' }}
+      >
+        <IndustryOverview />
+      </section>
+
+      <section
+        className="industrial-section public-dataset-status"
+        id="latest-approved-datasets"
+        style={{ scrollMarginTop: '100px', paddingTop: '0' }}
+      >
+        <span className="section-index">PUBLICATION STATUS</span>
+        <h2>Latest approved datasets</h2>
+        <p>No user-submitted datasets are currently published as official TrustCarbon data. Reviewer approval makes a submission eligible for a separate publication decision and does not make private files public.</p>
+      </section>
+
+      {/* Data table */}
       <section
         className="industrial-section"
         id="data-table"
         style={{ scrollMarginTop: '100px', paddingTop: '0' }}
       >
         <SectionHeading
-          title="Carbon Data Table"
-          subtitle="Full dataset — all countries, regions, years, CO₂ (in megatons), and per-capita values."
+          title="Data table"
+          subtitle="Browse reported country and region values by year. Emissions are shown in megatonnes."
         />
         <DataTable data={TABLE_DATA} />
       </section>
 
-      {/* ─── 7. DATA SOURCES ─────────────────────────────────────────────── */}
+      {/* Sources and methodology */}
       <section
         className="industrial-section"
         id="data-sources"
@@ -147,7 +139,6 @@ export default function Home({ isLoggedIn }) {
         <DataSources />
       </section>
 
-      {/* ─── 8. PERSONAL TRACKER ─────────────────────────────────────────── */}
       <div
         ref={personalRef}
         id="personal-tracker"

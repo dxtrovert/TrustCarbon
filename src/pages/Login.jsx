@@ -1,20 +1,21 @@
-import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import LoginForm from '../components/LoginForm';
+import { useEffect } from 'react';
+import LoginForm from '../components/ui/LoginForm';
+import { useAuth } from '../hooks/useAuth';
 
-export default function Login({ isLoggedIn, onLoginSuccess }) {
+export default function Login() {
   const navigate = useNavigate();
+  const { user, profile, loading } = useAuth();
 
-  // If already logged in, redirect to dashboard
   useEffect(() => {
-    if (isLoggedIn) {
-      navigate('/dashboard');
+    if (!loading && user && profile) {
+      navigate(profile.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
     }
-  }, [isLoggedIn, navigate]);
+  }, [loading, user, profile, navigate]);
 
   return (
     <div className="page-container">
-      <LoginForm onLoginSuccess={onLoginSuccess} />
+      <LoginForm />
     </div>
   );
 }

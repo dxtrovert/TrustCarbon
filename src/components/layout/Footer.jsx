@@ -1,32 +1,30 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const scrollTo = (id) => {
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: 'smooth' });
-};
-
 export default function Footer() {
   return (
     <footer className="site-footer" id="footer">
       <div className="footer-top">
         <div className="footer-brand">
-          <span className="brand-name">TrustCarbon</span>
+          <Link to="/" className="footer-brand-link" aria-label="TrustCarbon home">
+            <img className="footer-brand-logo" src="/assets/trustcarbon-fingerprint.png" alt="TrustCarbon logo" />
+            <span className="brand-name">TrustCarbon</span>
+          </Link>
           <span className="brand-tagline">Measure. Reduce. Sustain.</span>
         </div>
 
         <div className="footer-cols">
           <div className="footer-col">
             <h4>Explore</h4>
-            <a href="#global-carbon-data" onClick={(e) => { e.preventDefault(); scrollTo('global-carbon-data'); }}>Global Data</a>
-            <a href="#regional-analysis" onClick={(e) => { e.preventDefault(); scrollTo('regional-analysis'); }}>Regional Analysis</a>
-            <a href="#country-explorer" onClick={(e) => { e.preventDefault(); scrollTo('country-explorer'); }}>Country Explorer</a>
+            <Link to="/#global-carbon-data">Global Data</Link>
+            <Link to="/#regional-analysis">Regional Analysis</Link>
+            <Link to="/#country-explorer">Country Explorer</Link>
           </div>
           <div className="footer-col">
             <h4>Datasets</h4>
-            <a href="#india-states" onClick={(e) => { e.preventDefault(); scrollTo('india-states'); }}>India State Data</a>
-            <a href="#data-table" onClick={(e) => { e.preventDefault(); scrollTo('data-table'); }}>Data Table</a>
-            <a href="#data-sources" onClick={(e) => { e.preventDefault(); scrollTo('data-sources'); }}>Data Sources</a>
+            <Link to="/#india-states">India State Data</Link>
+            <Link to="/#data-table">Data Table</Link>
+            <Link to="/#data-sources">Data Sources</Link>
           </div>
           <div className="footer-col">
             <h4>Account</h4>

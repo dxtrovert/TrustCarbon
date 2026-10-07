@@ -9,7 +9,7 @@ import {
   Tooltip
 } from 'recharts';
 import ChartCard from './ChartCard';
-import { YEARS, getRegionalDataForYear, LATEST_YEAR } from '../data/realData';
+import { YEARS, getRegionalDataForYear, LATEST_YEAR } from '../../data/realData';
 
 export default function RegionalChart({ data, loading = false, error = false }) {
   const [metric, setMetric] = useState('co2'); // 'co2' or 'co2PerCapita'
