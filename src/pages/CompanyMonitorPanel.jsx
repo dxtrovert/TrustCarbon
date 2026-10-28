@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { calculateCorporateAnalysis } from '../analysis/corporateAnalysis';
 import BRSRDocumentImport from '../components/corporate/BRSRDocumentImport';
 import CorporateCompanyBar from '../components/corporate/CorporateCompanyBar';
+import ThresholdAlerts from '../components/corporate/ThresholdAlerts';
+import { useCompanyAlerts } from '../hooks/useCompanyAlerts';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useCorporateIntelligence } from '../hooks/useCorporateIntelligence';
 import { getCompanyFacilityMatches } from '../services/climateTraceCorporateService';
@@ -61,13 +63,15 @@ export default function CompanyMonitorPanel() {
     return () => { active = false; };
   }, [company, selectedYear]);
 
-  const analysis = useMemo(() => calculateCorporateAnalysis({
+  const baseAnalysis = useMemo(() => calculateCorporateAnalysis({
     company,
     report: currentReport,
     reports,
     facilityMatches,
     benchmark,
   }), [company, currentReport, reports, facilityMatches, benchmark]);
+  const thresholdAlerts = useCompanyAlerts(baseAnalysis);
+  const analysis = useMemo(() => ({ ...baseAnalysis, thresholdAlerts: thresholdAlerts.triggered }), [baseAnalysis, thresholdAlerts.triggered]);
   const industry = facilityMatches.length
     ? `${facilityMatches[0].sector} / ${facilityMatches[0].subsector} · Climate TRACE facility categorization`
     : 'Data unavailable';
@@ -132,6 +136,7 @@ export default function CompanyMonitorPanel() {
       </section>
 
       <BRSRDocumentImport />
+      <ThresholdAlerts key={company} alerts={thresholdAlerts} analysis={baseAnalysis} />
 
       <section className="tc-panel tc-facility-panel">
         <div className="tc-panel-heading"><div><span className="tc-eyebrow">DETAILED SOURCE LAYER / {selectedYear}</span><h2>Climate TRACE named-facility matches</h2></div><span className="tc-unit-tag">India · top 100 ranked source records</span></div>
@@ -154,7 +159,7 @@ export default function CompanyMonitorPanel() {
       <section className="tc-panel tc-monitoring-status">
         <div className="tc-panel-heading"><div><span className="tc-eyebrow">PUBLIC-SOURCE MONITORING</span><h2>Source update status</h2></div><span className="tc-unit-tag">Manual source intake</span></div>
         <p><strong>Automated filing polling is not enabled.</strong> No reliable company-wide official BRSR update feed or scheduled backend monitor is configured in this project. TrustCarbon does not scrape company websites on a timer or claim that filings were automatically detected.</p>
-        <p>The current ingestion path is: user supplies a public BRSR PDF → local text extraction → user confirms source rows → a session-scoped “new data” alert is recorded. A production monitor would need source-approved exchange/issuer filing adapters, rate limits, document hashes and a persistent filing registry before alerts can be called automated.</p>
+        <p>The current ingestion path is: user supplies a public BRSR PDF → local text extraction → user confirms source rows → configured in-app thresholds are evaluated. The source update record below describes only a manual import.</p>
         {newDataAlert?.company.trim().toLowerCase() === company.trim().toLowerCase() && <small>Latest manual import: {newDataAlert.reportingYear} · {newDataAlert.source} · {newDataAlert.status}</small>}
       </section>
 
@@ -163,7 +168,7 @@ export default function CompanyMonitorPanel() {
           <span className="tc-eyebrow">NEW CORPORATE DATA / MANUAL IMPORT</span>
           <strong>{newDataAlert.company} · {newDataAlert.reportingYear}</strong>
           <p>{newDataAlert.metrics.length} candidate disclosure metric(s) detected · {newDataAlert.source}</p>
-          <small>This alert records the user’s PDF import in this browser session. No automated public-source monitoring is configured.</small>
+          <small>This status records the user’s PDF import in this browser session.</small>
         </section>
       )}
 
