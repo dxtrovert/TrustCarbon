@@ -1,14 +1,28 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import { useAuth } from './hooks/useAuth';
+import DashboardShell from './components/layout/DashboardShell';
 
-// Pages
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/AdminDashboard';
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const OverviewPanel = lazy(() => import('./pages/OverviewPanel'));
+const GlobalExplorerPanel = lazy(() => import('./pages/GlobalExplorerPanel'));
+const IndiaIntelligencePanel = lazy(() => import('./pages/IndiaIntelligencePanel'));
+const IndustryPanel = lazy(() => import('./pages/IndustryPanel'));
+const DataSources = lazy(() => import('./components/DataSources'));
+const AnomaliesPanel = lazy(() => import('./pages/AnomaliesPanel'));
+const InsightsPanel = lazy(() => import('./pages/InsightsPanel'));
+const SimulatorPanel = lazy(() => import('./pages/SimulatorPanel'));
+const TimeMachinePanel = lazy(() => import('./pages/TimeMachinePanel'));
+const TrustScoresPanel = lazy(() => import('./pages/TrustScoresPanel'));
+const AnalysisEnginePanel = lazy(() => import('./pages/AnalysisEnginePanel'));
+const CompanyMonitorPanel = lazy(() => import('./pages/CompanyMonitorPanel'));
+const BRSRPanel = lazy(() => import('./pages/BRSRPanel'));
+const ComplianceRadarPanel = lazy(() => import('./pages/ComplianceRadarPanel'));
+const GreenCreditPanel = lazy(() => import('./pages/GreenCreditPanel'));
 
 function ProtectedRoute({ role, children }) {
   const { user, profile, loading, error } = useAuth();
@@ -25,41 +39,55 @@ function ProtectedRoute({ role, children }) {
   return children;
 }
 
-export default function App() {
+function AppRoutes() {
   const { user, profile, signOut } = useAuth();
+  const location = useLocation();
+  const dashboardPath = location.pathname === '/'
+    || location.pathname.startsWith('/explore/')
+    || location.pathname.startsWith('/intelligence/')
+    || location.pathname.startsWith('/corporate/')
+    || location.pathname.startsWith('/data/');
 
   return (
-    <Router>
-      <div className="app-layout" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <a className="skip-link" href="#main-content">Skip to content</a>
-
-        <Navbar isLoggedIn={Boolean(user)} isAdmin={profile?.role === 'admin'} onLogout={signOut} />
-
-        <main id="main-content" style={{ flexGrow: 1 }}>
+    <div className="app-layout">
+      <a className="skip-link" href="#main-content">Skip to content</a>
+      {!dashboardPath && <Navbar isLoggedIn={Boolean(user)} isAdmin={profile?.role === 'admin'} onLogout={signOut} />}
+      <main id="main-content">
+        <Suspense fallback={<div className="page-container" role="status">Opening TrustCarbon workspace…</div>}>
           <Routes>
-            <Route
-              path="/"
-              element={<Home isLoggedIn={Boolean(user)} />}
-            />
-            <Route
-              path="/login"
-              element={<Login />}
-            />
-            <Route
-              path="/dashboard"
-              element={<ProtectedRoute role="user"><Dashboard /></ProtectedRoute>}
-            />
-            <Route
-              path="/admin"
-              element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>}
-            />
-            {/* Redirect old routes to home */}
+            <Route path="/" element={<DashboardShell />}>
+              <Route index element={<OverviewPanel />} />
+              <Route path="explore/global" element={<GlobalExplorerPanel />} />
+              <Route path="explore/india" element={<IndiaIntelligencePanel />} />
+              <Route path="explore/industries" element={<IndustryPanel />} />
+              <Route path="data/sources" element={<DataSources />} />
+              <Route path="intelligence/analysis" element={<AnalysisEnginePanel />} />
+              <Route path="intelligence/anomalies" element={<AnomaliesPanel />} />
+              <Route path="intelligence/insights" element={<InsightsPanel />} />
+              <Route path="intelligence/simulator" element={<SimulatorPanel />} />
+              <Route path="intelligence/time-machine" element={<TimeMachinePanel />} />
+              <Route path="corporate/monitor" element={<CompanyMonitorPanel />} />
+              <Route path="corporate/brsr" element={<BRSRPanel />} />
+              <Route path="corporate/compliance" element={<ComplianceRadarPanel />} />
+              <Route path="corporate/green-credit" element={<GreenCreditPanel />} />
+              <Route path="data/trust-scores" element={<TrustScoresPanel />} />
+            </Route>
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<ProtectedRoute role="user"><Dashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
+        </Suspense>
+      </main>
+      {!dashboardPath && <Footer />}
+    </div>
+  );
+}
 
-        <Footer />
-      </div>
+export default function App() {
+  return (
+    <Router>
+      <AppRoutes />
     </Router>
   );
 }
