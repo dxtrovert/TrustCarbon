@@ -8,52 +8,51 @@ import { useDashboardData } from '../../hooks/useDashboardData';
 const NAV_GROUPS = [
   {
     title: 'OVERVIEW',
-    items: [{ label: 'Overview', path: '/', icon: '◈', end: true }],
+    items: [{ label: 'Overview', path: '/', end: true }],
   },
   {
     title: 'EXPLORE',
     items: [
-      { label: 'Global Explorer', path: '/explore/global', icon: '◎' },
-      { label: 'India Intelligence', path: '/explore/india', icon: '⌖' },
-      { label: 'Industries', path: '/explore/industries', icon: '▥' },
+      { label: 'Global Explorer', path: '/explore/global' },
+      { label: 'India Intelligence', path: '/explore/india' },
+      { label: 'Industries', path: '/explore/industries' },
     ],
   },
   {
     title: 'INTELLIGENCE',
     items: [
-      { label: 'Analysis Engine', path: '/intelligence/analysis', icon: '⌁' },
-      { label: 'Anomalies', path: '/intelligence/anomalies', icon: '⌁' },
-      { label: 'Carbon Insights', path: '/intelligence/insights', icon: '◌' },
-      { label: 'What-If Simulator', path: '/intelligence/simulator', icon: '↗' },
-      { label: 'Carbon Time Machine', path: '/intelligence/time-machine', icon: '◷' },
+      { label: 'Analysis Engine', path: '/intelligence/analysis' },
+      { label: 'Anomalies', path: '/intelligence/anomalies' },
+      { label: 'Carbon Insights', path: '/intelligence/insights' },
+      { label: 'What-If Simulator', path: '/intelligence/simulator' },
+      { label: 'Carbon Time Machine', path: '/intelligence/time-machine' },
     ],
   },
   {
     title: 'CORPORATE',
     items: [
-      { label: 'Company Monitor', path: '/corporate/monitor', icon: '▤' },
-      { label: 'BRSR', path: '/corporate/brsr', icon: '▧' },
-      { label: 'Compliance Radar', path: '/corporate/compliance', icon: '◉' },
-      { label: 'Green Credit', path: '/corporate/green-credit', icon: '✳' },
+      { label: 'Company Monitor', path: '/corporate/monitor' },
+      { label: 'BRSR', path: '/corporate/brsr' },
+      { label: 'Compliance Radar', path: '/corporate/compliance' },
+      { label: 'Green Credit', path: '/corporate/green-credit' },
     ],
   },
   {
     title: 'DATA',
     items: [
-      { label: 'Data Sources', path: '/data/sources', icon: '◫' },
-      { label: 'Trust Scores', path: '/data/trust-scores', icon: '◇' },
+      { label: 'Data Sources', path: '/data/sources' },
+      { label: 'Trust Scores', path: '/data/trust-scores' },
+      { label: 'Connection Checks', path: '/data/system' },
     ],
   },
 ];
-
-const TITLES = Object.fromEntries(NAV_GROUPS.flatMap((group) => group.items.map((item) => [item.path, item.label])));
 
 function DashboardWorkspace() {
   const { user, profile, signOut } = useAuth();
   const { years, selectedYear, setSelectedYear, playing, setPlaying } = useDashboardData();
   const location = useLocation();
   const [logoutError, setLogoutError] = useState('');
-  const currentTitle = TITLES[location.pathname] || 'Overview';
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     setLogoutError('');
@@ -69,10 +68,11 @@ function DashboardWorkspace() {
       <aside className="tc-sidebar">
         <Link to="/" className="tc-brand" aria-label="TrustCarbon overview">
           <span className="tc-brand-mark"><img src="/assets/trustcarbon-fingerprint.png" alt="" /></span>
-          <span><strong>TRUSTCARBON</strong><small>CLIMATE INTELLIGENCE</small></span>
+          <span><strong>TrustCarbon</strong><small>Measure. Reduce. Sustain.</small></span>
         </Link>
 
-        <nav className="tc-navigation" aria-label="Dashboard navigation">
+        <button type="button" className="tc-mobile-menu" aria-expanded={menuOpen} aria-controls="dashboard-navigation" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? 'Close navigation' : 'Open navigation'}</button>
+        <nav id="dashboard-navigation" className={`tc-navigation${menuOpen ? ' tc-navigation-open' : ''}`} aria-label="Dashboard navigation">
           {NAV_GROUPS.map((group) => (
             <section className="tc-nav-group" key={group.title} aria-label={group.title}>
               <h2>{group.title}</h2>
@@ -80,10 +80,10 @@ function DashboardWorkspace() {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  onClick={() => setMenuOpen(false)}
                   end={item.end}
                   className={({ isActive }) => `tc-nav-link${isActive ? ' active' : ''}`}
                 >
-                  <span className="tc-nav-icon" aria-hidden="true">{item.icon}</span>
                   <span>{item.label}</span>
                 </NavLink>
               ))}
@@ -117,9 +117,13 @@ function DashboardWorkspace() {
 
       <div className="tc-workspace">
         <header className="tc-topbar">
-          <div className="tc-breadcrumb"><span>TRUSTCARBON</span><b>/</b><strong>{currentTitle}</strong></div>
+          <label className="tc-search" aria-label="Search the climate data workspace">
+            <span aria-hidden="true">⌕</span>
+            <input placeholder="Search countries, industries, emissions data..." />
+            <kbd>Ctrl K</kbd>
+          </label>
           <div className="tc-topbar-meta">
-            {years.length > 0 && (
+            {years.length > 0 && location.pathname !== '/intelligence/time-machine' && (
               <div className="tc-global-year-control">
                 <button type="button" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause historical year playback' : 'Play historical year playback'}>{playing ? 'Ⅱ' : '▶'}</button>
                 <span>{years[0]}</span>
@@ -134,7 +138,8 @@ function DashboardWorkspace() {
                 <strong>{selectedYear ?? years.at(-1)}</strong>
               </div>
             )}
-            <span className="tc-history-indicator"><i /> HISTORICAL</span>
+            <Link className="tc-dashboard-button" to="/dashboard">Dashboard</Link>
+            <span className="tc-profile-status" aria-label="System online"><i /></span>
           </div>
         </header>
         <div className="tc-content">

@@ -15,7 +15,7 @@ it('skips unavailable, disabled, other-company and incompatible-unit rules', () 
   }
 });
 it('requires confirmation and complete source/page/column evidence', () => {
-  for (const patch of [{ confirmation: '' }, { source: '' }, { page: null }, { reportingColumn: '' }, { value: null }]) {
+  for (const patch of [{ confirmation: '' }, { source: '' }, { page: null }, { reportingColumn: '' }, { reportingColumn: 'FY2023-24 standalone' }, { unit: 'Not stated in extracted row' }, { value: null }]) {
     expect(evaluateAlertRules([rule], { ...analysis, report: { ...analysis.report, confirmedMetrics: { scope1: { ...metric, ...patch } } } })).toEqual([]);
   }
 });

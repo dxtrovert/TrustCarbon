@@ -1796,3 +1796,6 @@ html { scroll-padding-top: 84px; }
   .industry-charts { grid-template-columns: 1fr; gap: 18px; }
   .industry-chart { height: 250px; }
 }
+
+.activity-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }

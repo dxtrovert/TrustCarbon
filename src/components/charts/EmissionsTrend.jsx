@@ -6,11 +6,18 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip
+  Tooltip,
+  ReferenceLine,
 } from 'recharts';
 import ChartCard from './ChartCard';
 
-export default function EmissionsTrend({ data, loading = false, error = false }) {
+export default function EmissionsTrend({
+  data,
+  loading = false,
+  error = false,
+  subtitle = 'Historical annual CO₂ estimates. Values are not real-time.',
+  activeYear,
+}) {
   const isEmpty = !data || data.length === 0;
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -43,7 +50,7 @@ export default function EmissionsTrend({ data, loading = false, error = false })
   return (
     <ChartCard
       title="Global Emissions Trend"
-      subtitle="Aggregated CO₂ across all dataset countries (1990–2019)"
+      subtitle={subtitle}
       loading={loading}
       empty={isEmpty}
       error={error}
@@ -73,6 +80,7 @@ export default function EmissionsTrend({ data, loading = false, error = false })
             dx={-8}
           />
           <Tooltip content={<CustomTooltip />} />
+          {Number.isFinite(activeYear) && <ReferenceLine x={activeYear} stroke="#bc8045" strokeDasharray="3 4" />}
           <Area
             type="monotone"
             dataKey="co2"

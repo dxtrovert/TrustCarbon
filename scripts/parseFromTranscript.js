@@ -15,7 +15,7 @@ try {
       if (parsed.type === 'USER_INPUT' && parsed.content) {
         userText += parsed.content;
       }
-    } catch (e) {
+    } catch {
       // skip invalid lines
     }
   }
@@ -24,7 +24,6 @@ try {
   const indiaMatch = userText.match(/States,per capita CO2 \(kg per person\),per capita CO \(kg per person\),per capita CH4 \(kg per person\)[\s\S]*?(?=Country,Region,Date|$)/);
   if (indiaMatch) {
     const indiaLines = indiaMatch[0].trim().split('\n').filter(l => l.trim());
-    const header = indiaLines[0].split(',');
     const records = [];
     for (let i = 1; i < indiaLines.length; i++) {
       const cols = indiaLines[i].split(',');

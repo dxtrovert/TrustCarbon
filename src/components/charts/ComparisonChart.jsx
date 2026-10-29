@@ -10,7 +10,7 @@ import {
 export default function ComparisonChart({ data, loading = false, error = false }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All');
-  const [selectedYear, setSelectedYear] = useState('2025');
+  const selectedYear = '2025';
 
   // Filter entities list based on region and search query
   const filteredEntities = useMemo(() => {

@@ -14,7 +14,7 @@ import ChartCard from '../components/charts/ChartCard';
 import { DEMO_PERSONAL_FOOTPRINT } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
 import DatasetSubmission from '../components/datasets/DatasetSubmission';
-import { createActivity, listActivities } from '../services/activityService';
+import { createActivity, listActivities, updateActivity, deleteActivity } from '../services/activityService';
 
 export default function Dashboard() {
   const { profile } = useAuth();
@@ -24,6 +24,16 @@ export default function Dashboard() {
   const [activityError, setActivityError] = useState('');
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [savingActivity, setSavingActivity] = useState(false);
+  const [editingActivity, setEditingActivity] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deletingActivity, setDeletingActivity] = useState(null);
+  const startNewActivity = () => { setEditingActivity(null); setShowActivityForm(true); };
+  const handleDelete = async (id) => {
+    setDeletingActivity(id); setActivityError('');
+    try { await deleteActivity(id); setPendingDelete(null); await loadActivities(); }
+    catch (error) { setActivityError(error.message || 'Unable to delete this activity.'); }
+    finally { setDeletingActivity(null); }
+  };
 
   const loadActivities = useCallback(async () => {
     try {
@@ -102,15 +112,17 @@ export default function Dashboard() {
     setSavingActivity(true);
     setActivityError('');
     try {
-      await createActivity({
-        user_id: profile.id,
-        category: formData.get('category'),
+      const changes = {
+        category: formData.get('category').trim(),
         activity_name: formData.get('activity_name').trim(),
         amount: Number(formData.get('amount')),
         unit: formData.get('unit').trim(),
         co2_emission: Number(formData.get('co2_emission')),
         activity_date: formData.get('activity_date'),
-      });
+      };
+      if (editingActivity) await updateActivity(editingActivity.id, changes);
+      else await createActivity({ ...changes, user_id: profile.id });
+      setEditingActivity(null);
       form.reset();
       setShowActivityForm(false);
       await loadActivities();
@@ -152,7 +164,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <button onClick={() => setShowActivityForm(!showActivityForm)} className="btn btn-primary">
+          <button onClick={startNewActivity} className="btn btn-primary">
             + Add activity
           </button>
           <button onClick={handleToggleDemo} className="demo-connect-btn">
@@ -163,38 +175,40 @@ export default function Dashboard() {
 
       {activityError && <p role="alert" style={{ marginBottom: '16px' }}>{activityError}</p>}
       {showActivityForm && (
-        <form className="chart-card login-form" onSubmit={handleCreateActivity} style={{ marginBottom: '24px' }}>
-          <h3>Log a carbon activity</h3>
+        <form key={editingActivity?.id || 'new'} className="chart-card login-form" onSubmit={handleCreateActivity} style={{ marginBottom: '24px' }}>
+          <h3>{editingActivity ? 'Edit carbon activity' : 'Log a carbon activity'}</h3>
           <div className="form-field">
             <label htmlFor="activity-category">Category</label>
-            <input id="activity-category" name="category" className="text-input" required maxLength={100} placeholder="Transport, Energy, Food…" />
+            <input id="activity-category" name="category" defaultValue={editingActivity?.category ?? ''} className="text-input" required maxLength={100} placeholder="Transport, Energy, Food…" />
           </div>
           <div className="form-field">
             <label htmlFor="activity-name">Activity</label>
-            <input id="activity-name" name="activity_name" className="text-input" required maxLength={200} />
+            <input id="activity-name" name="activity_name" defaultValue={editingActivity?.activity_name ?? ''} className="text-input" required maxLength={200} />
           </div>
           <div className="form-field">
             <label htmlFor="activity-amount">Amount</label>
-            <input id="activity-amount" name="amount" className="text-input" type="number" min="0" step="any" required />
+            <input id="activity-amount" name="amount" defaultValue={editingActivity?.amount ?? ''} className="text-input" type="number" min="0" step="any" required />
           </div>
           <div className="form-field">
             <label htmlFor="activity-unit">Unit</label>
-            <input id="activity-unit" name="unit" className="text-input" required maxLength={50} placeholder="km, kWh, kg…" />
+            <input id="activity-unit" name="unit" defaultValue={editingActivity?.unit ?? ''} className="text-input" required maxLength={50} placeholder="km, kWh, kg…" />
           </div>
           <div className="form-field">
             <label htmlFor="activity-emission">CO₂ emission (kg CO₂e)</label>
-            <input id="activity-emission" name="co2_emission" className="text-input" type="number" min="0" step="any" required />
+            <input id="activity-emission" name="co2_emission" defaultValue={editingActivity?.co2_emission ?? ''} className="text-input" type="number" min="0" step="any" required />
           </div>
           <div className="form-field">
             <label htmlFor="activity-date">Activity date</label>
-            <input id="activity-date" name="activity_date" className="text-input" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+            <input id="activity-date" name="activity_date" className="text-input" type="date" required defaultValue={editingActivity?.activity_date || new Date().toLocaleDateString('en-CA')} />
           </div>
           <button className="btn btn-primary" type="submit" disabled={savingActivity}>
-            {savingActivity ? 'Saving…' : 'Save activity'}
+            {savingActivity ? 'Saving…' : editingActivity ? 'Save changes' : 'Save activity'}
           </button>
+          <button className="btn btn-secondary" type="button" disabled={savingActivity} onClick={() => { setShowActivityForm(false); setEditingActivity(null); }}>Cancel</button>
         </form>
       )}
 
+      {demoConnected && !activityData && <p role="status">Demo profile: all displayed activity and goal values are illustrative and are not saved to your account.</p>}
       {/* KPI Cards */}
       <KpiGrid>
         <KpiCard
@@ -326,7 +340,15 @@ export default function Dashboard() {
                       {activity.category} · {activity.amount} {activity.unit} · {activity.activity_date}
                     </span>
                   </div>
-                  <b>{Number(activity.co2_emission).toFixed(1)} kg CO₂e</b>
+                  <div className="activity-actions">
+                    <b>{Number(activity.co2_emission).toFixed(1)} kg CO₂e</b>
+                    <button className="btn btn-secondary" type="button" disabled={savingActivity || Boolean(deletingActivity)} onClick={() => { setEditingActivity(activity); setShowActivityForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit<span className="sr-only"> {activity.activity_name}</span></button>
+                    {pendingDelete === activity.id ? <>
+                      <span>Delete this activity?</span>
+                      <button className="btn btn-secondary" type="button" disabled={Boolean(deletingActivity)} onClick={() => handleDelete(activity.id)}>{deletingActivity === activity.id ? 'Deleting…' : 'Confirm delete'}</button>
+                      <button className="btn btn-secondary" type="button" disabled={Boolean(deletingActivity)} onClick={() => setPendingDelete(null)}>Keep activity</button>
+                    </> : <button className="btn btn-secondary" type="button" onClick={() => setPendingDelete(activity.id)}>Delete<span className="sr-only"> {activity.activity_name}</span></button>}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -351,7 +373,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          <button className="add-activity-btn" style={{ marginTop: '24px' }} onClick={() => setShowActivityForm(!showActivityForm)}>
+          <button className="add-activity-btn" style={{ marginTop: '24px' }} onClick={startNewActivity}>
             + Add activity
           </button>
         </div>
@@ -361,11 +383,11 @@ export default function Dashboard() {
           <div className="chart-header" style={{ marginBottom: '16px' }}>
             <div className="chart-title-wrapper">
               <h3>Reduction Progress</h3>
-              <p>Annual savings progress vs. target goal</p>
+              <p>Illustrative goal shown only for the demo profile</p>
             </div>
           </div>
           <div className="comparison-result" style={{ border: 'none', background: 'none', padding: '0px' }}>
-            {hasData ? (
+            {demoConnected && !activityData ? (
               <div style={{ textAlign: 'left', width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
                   <span>Annual Savings Goal</span>
@@ -393,7 +415,7 @@ export default function Dashboard() {
               <div className="state-overlay">
                 <div className="state-icon">🎯</div>
                 <div className="state-title">No Reduction Goal Active</div>
-                <div className="state-desc">Add activities to measure and model your path toward reduction targets.</div>
+                <div className="state-desc">Your logged activities show your recorded footprint. A reduction percentage requires a comparable baseline and reporting period.</div>
               </div>
             )}
           </div>

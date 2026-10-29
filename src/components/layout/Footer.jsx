@@ -16,15 +16,14 @@ export default function Footer() {
         <div className="footer-cols">
           <div className="footer-col">
             <h4>Explore</h4>
-            <Link to="/#global-carbon-data">Global Data</Link>
-            <Link to="/#regional-analysis">Regional Analysis</Link>
-            <Link to="/#country-explorer">Country Explorer</Link>
+            <Link to="/explore/global">Global Explorer</Link>
+            <Link to="/explore/india">India Intelligence</Link>
+            <Link to="/explore/industries">Industries</Link>
           </div>
           <div className="footer-col">
             <h4>Datasets</h4>
-            <Link to="/#india-states">India State Data</Link>
-            <Link to="/#data-table">Data Table</Link>
-            <Link to="/#data-sources">Data Sources</Link>
+            <Link to="/data/sources">Data Sources</Link>
+            <Link to="/data/trust-scores">Trust Scores</Link>
           </div>
           <div className="footer-col">
             <h4>Account</h4>
@@ -35,7 +34,7 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom">
-        <span>© {new Date().getFullYear()} TrustCarbon. Data from Carbon (CO₂) Emissions by Country &amp; CarbonEmissionIndia datasets.</span>
+        <span>© {new Date().getFullYear()} TrustCarbon. Historical context by Our World in Data; detailed sources by Climate TRACE.</span>
       </div>
     </footer>
   );

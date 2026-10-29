@@ -15,7 +15,7 @@ try {
       if (parsed.type === 'USER_INPUT' && parsed.content) {
         userText += parsed.content;
       }
-    } catch (e) {
+    } catch {
       // skip invalid lines
     }
   }

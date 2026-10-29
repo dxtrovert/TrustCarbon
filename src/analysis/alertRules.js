@@ -10,11 +10,14 @@ export function evaluateAlertRules(rules, analysis) {
   const metrics = analysis.report?.confirmedMetrics || {};
   return rules.flatMap((rule) => {
     const metric = metrics[METRIC_KEYS[rule.metric]];
+    const columnYear = metric?.reportingColumn?.match(/(?:19|20)\d{2}/)?.[0];
+    const reportYear = analysis.report?.reportingYear?.match(/(?:19|20)\d{2}/)?.[0];
     if (!rule.enabled || companyKey(rule.company) !== companyKey(analysis.company)
       || !Number.isFinite(rule.threshold) || !['gt', 'lt'].includes(rule.operator)
       || !Number.isFinite(metric?.value) || !metric.source?.trim() || !Number.isInteger(metric.page) || metric.page < 1
       || !metric.confirmation?.startsWith('User-confirmed')
       || !analysis.report?.reportingYear || !metric.reportingColumn?.trim()
+      || !columnYear || columnYear !== reportYear || /not stated/i.test(metric.unit || '')
       || !rule.unit || rule.unit !== metric.unit) return [];
     if (!(rule.operator === 'gt' ? metric.value > rule.threshold : metric.value < rule.threshold)) return [];
     return [{

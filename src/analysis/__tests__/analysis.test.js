@@ -19,7 +19,7 @@ describe('historical trends', () => {
   });
 });
 
-// Alternating changes have mean 0 and sample deviation 1, exactly.
+// Alternating changes have mean 0 and sample deviation 50, exactly.
 function changesFixture(lastChange, baseline = [-50, 50, -50, 50, 0]) {
   let value = 100;
   return [{ year: 2000, value }, ...[...baseline, lastChange].map((percent, index) => {

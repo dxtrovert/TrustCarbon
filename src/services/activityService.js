@@ -38,7 +38,9 @@ export async function deleteActivity(activityId) {
   const { error } = await getSupabaseClient()
     .from('activities')
     .delete()
-    .eq('id', activityId);
+    .eq('id', activityId)
+    .select('id')
+    .single();
 
   if (error) throw error;
 }

@@ -9,25 +9,36 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
+import { useDashboardData } from '../../hooks/useDashboardData';
 import { INDIA_STATE_DATA } from '../../data/realData';
+import { getIndiaStateEmissionHistory, getIndiaStateEmissions } from '../../services/climateTraceService';
+import { getIndiaBoundaries } from '../../services/indiaBoundaryService';
+import {
+  calculateCarbonPressure,
+  calculateConfidence,
+  calculateGrowthRate,
+  calculateRank,
+  compareWithAverage,
+  detectAnomalies,
+  generateInsights,
+} from '../../analysis/analysisEngine';
 
 const METRICS = [
   { key: 'co2PerCapita', label: 'CO₂ per capita', unit: 'kg/person', color: 'var(--accent)' },
-  { key: 'co2Total', label: 'Total CO₂', unit: 'Mt CO₂', color: 'var(--primary)' },
   { key: 'coPerCapita', label: 'CO per capita', unit: 'kg/person', color: '#65776b' },
   { key: 'ch4PerCapita', label: 'CH₄ per capita', unit: 'kg/person', color: '#9a7046' },
 ];
-const MAP_COLORS = ['#e5eadf', '#c2cfb8', '#849b79', '#42644a'];
+const CLIMATE_TRACE_METRIC = {
+  key: 'emissionsMt',
+  label: 'Reported non-forest CO₂e emissions',
+  unit: 'Mt CO₂e',
+  color: 'var(--accent)',
+};
+const CLIMATE_TRACE_METRICS = [CLIMATE_TRACE_METRIC];
+const MAP_COLORS = ['#E5F1E3', '#B7D3AC', '#78A878', '#E5D77A', '#E99A65', '#D96B64', '#B83C3C'];
 const MAP_WIDTH = 840;
 const MAP_HEIGHT = 590;
 const MAP_PADDING = 14;
-const REQUIRED_NORTHERN_BOUNDARIES = {
-  'IN-JK': 'Jammu and Kashmir',
-  'IN-LA': 'Ladakh',
-  'IN-HP': 'Himachal Pradesh',
-  'IN-UK': 'Uttarakhand',
-  'IN-AR': 'Arunachal Pradesh',
-};
 const ISO_TO_TRUSTCARBON_STATE = {
   'IN-AP': 'Andhra Pradesh',
   'IN-AR': 'Arunachal',
@@ -109,42 +120,70 @@ function CustomTooltip({ active, payload, label, metric }) {
 }
 
 export default function IndiaStateChart() {
+  const { selectedYear, setSelectedYear } = useDashboardData();
   const [activeMetric, setActiveMetric] = useState('co2PerCapita');
   const [boundaries, setBoundaries] = useState([]);
   const [mapError, setMapError] = useState('');
+  const [climateStateData, setClimateStateData] = useState([]);
+  const [climateLoading, setClimateLoading] = useState(false);
+  const [climateError, setClimateError] = useState('');
   const [selectedState, setSelectedState] = useState('');
   const [hoveredState, setHoveredState] = useState('');
-  const metric = METRICS.find((item) => item.key === activeMetric);
+  const [selectedStateHistory, setSelectedStateHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const usesClimateTrace = selectedYear >= 2021;
+  const metrics = usesClimateTrace ? CLIMATE_TRACE_METRICS : METRICS;
+  const metric = metrics.find((item) => item.key === activeMetric) || metrics[0];
+  const activeMetricKey = metric.key;
 
   useEffect(() => {
     let active = true;
-    fetch('/assets/india-states.geojson')
-      .then((response) => {
-        if (!response.ok) throw new Error(`Map boundaries could not be loaded (${response.status}).`);
-        return response.json();
-      })
-      .then((geojson) => {
-        if (geojson.title !== 'India' || !Array.isArray(geojson.features) || geojson.features.length !== 36) {
-          throw new Error('The India state boundary dataset is incomplete.');
-        }
-        const stateIds = geojson.features.map((feature) => feature.properties?.['iso3166-2']);
-        if (stateIds.some((id) => !id || !id.startsWith('IN-')) || new Set(stateIds).size !== stateIds.length) {
-          throw new Error('The India state boundary dataset has missing or duplicate state identifiers.');
-        }
-        const namesById = new Map(geojson.features.map((feature) => [
-          feature.properties['iso3166-2'],
-          feature.properties.name,
-        ]));
-        if (Object.entries(REQUIRED_NORTHERN_BOUNDARIES).some(([id, name]) => namesById.get(id) !== name)) {
-          throw new Error('The India state boundary dataset is missing expected northern state geometry.');
-        }
-        if (active) setBoundaries(geojson.features);
-      })
+    getIndiaBoundaries()
+      .then((features) => { if (active) setBoundaries(features); })
       .catch((error) => {
         if (active) setMapError(error.message || 'Map boundaries could not be loaded.');
       });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!usesClimateTrace) {
+      setClimateStateData([]);
+      setClimateLoading(false);
+      setClimateError('');
+      return undefined;
+    }
+    let active = true;
+    setClimateLoading(true);
+    setClimateError('');
+    getIndiaStateEmissions(selectedYear)
+      .then((rows) => { if (active) setClimateStateData(rows); })
+      .catch((error) => { if (active) setClimateError(error.message || 'Climate TRACE state emissions could not be loaded.'); })
+      .finally(() => { if (active) setClimateLoading(false); });
+    return () => { active = false; };
+  }, [selectedYear, usesClimateTrace]);
+
+  useEffect(() => {
+    if (!usesClimateTrace || !selectedState) {
+      setSelectedStateHistory([]);
+      setHistoryLoading(false);
+      setHistoryError('');
+      return undefined;
+    }
+    let active = true;
+    setHistoryLoading(true);
+    setHistoryError('');
+    getIndiaStateEmissionHistory({ stateId: selectedState, throughYear: selectedYear })
+      .then((rows) => { if (active) setSelectedStateHistory(rows); })
+      .catch((error) => { if (active) setHistoryError(error.message || 'Selected-state history could not be loaded.'); })
+      .finally(() => { if (active) setHistoryLoading(false); });
+    return () => { active = false; };
+  }, [selectedState, selectedYear, usesClimateTrace]);
+
+  useEffect(() => {
+    if (!metrics.some((item) => item.key === activeMetric)) setActiveMetric(metrics[0].key);
+  }, [activeMetric, metrics]);
 
   const mapModel = useMemo(() => {
     if (!boundaries.length) return { groups: [] };
@@ -187,7 +226,9 @@ export default function IndiaStateChart() {
     return { groups: [...groups.values()] };
   }, [boundaries]);
 
+  const stateNamesById = useMemo(() => new Map(mapModel.groups.map(({ id, name }) => [id, name])), [mapModel]);
   const dataByStateId = useMemo(() => {
+    if (usesClimateTrace) return new Map(climateStateData.map((entry) => [entry.stateId, entry]));
     const entriesByName = new Map(
       INDIA_STATE_DATA.map((entry) => [normalizeState(entry.state), entry]),
     );
@@ -196,34 +237,71 @@ export default function IndiaStateChart() {
         .map(([id, name]) => [id, entriesByName.get(normalizeState(name))])
         .filter(([, entry]) => entry),
     );
-  }, []);
+  }, [climateStateData, usesClimateTrace]);
 
   const sorted = useMemo(
-    () => activeMetric === 'co2Total'
-      ? []
-      : [...INDIA_STATE_DATA].sort((first, second) => second[activeMetric] - first[activeMetric]),
-    [activeMetric],
+    () => usesClimateTrace
+      ? climateStateData
+        .filter((entry) => Number.isFinite(entry[activeMetricKey]))
+        .map((entry) => ({ ...entry, state: stateNamesById.get(entry.stateId) || entry.state }))
+        .sort((first, second) => second[activeMetricKey] - first[activeMetricKey])
+      : [...INDIA_STATE_DATA].sort((first, second) => second[activeMetricKey] - first[activeMetricKey]),
+    [activeMetricKey, climateStateData, stateNamesById, usesClimateTrace],
   );
-  const values = sorted.map((entry) => entry[activeMetric]).sort((first, second) => first - second);
-  const quartiles = values.length
-    ? [values[Math.floor(values.length * 0.25)], values[Math.floor(values.length * 0.5)], values[Math.floor(values.length * 0.75)]]
+  const rankedStates = sorted.slice(0, 5);
+  const values = sorted.map((entry) => entry[activeMetricKey]).sort((first, second) => first - second);
+  const quantileThresholds = values.length
+    ? MAP_COLORS.slice(1).map((_, index) => values[Math.min(values.length - 1, Math.floor(values.length * ((index + 1) / MAP_COLORS.length)))])
     : [];
   const valueForState = (stateId) => dataByStateId.get(stateId);
   const fillForState = (state) => {
-    const value = activeMetric === 'co2Total' ? undefined : valueForState(state)?.[activeMetric];
-    if (value === undefined || quartiles.length !== 3) return '#e5e3dc';
-    return MAP_COLORS[value > quartiles[2] ? 3 : value > quartiles[1] ? 2 : value > quartiles[0] ? 1 : 0];
+    const value = valueForState(state)?.[activeMetricKey];
+    if (!Number.isFinite(value) || quantileThresholds.length !== MAP_COLORS.length - 1) return '#E5E7E3';
+    const bucket = quantileThresholds.findIndex((threshold) => value <= threshold);
+    return MAP_COLORS[bucket === -1 ? MAP_COLORS.length - 1 : bucket];
   };
   const selectedData = valueForState(selectedState);
   const selectedStateName = boundaries.find((feature) => feature.properties['iso3166-2'] === selectedState)?.properties.name;
-  const selectedMetricValue = selectedData && activeMetric !== 'co2Total'
-    ? selectedData[activeMetric]
+  const selectedMetricValue = selectedData?.[activeMetricKey] ?? null;
+  const selectedRankIdentity = selectedData?.stateId || selectedData?.state;
+  const selectedRank = selectedData
+    ? calculateRank(sorted.map((entry) => ({
+      id: entry.stateId || entry.state,
+      value: entry[activeMetricKey],
+    })), selectedRankIdentity || selectedState)
     : null;
+  const peerComparison = selectedMetricValue === null ? null : compareWithAverage(
+    selectedMetricValue,
+    sorted.filter((entry) => (entry.stateId || entry.state) !== (selectedData?.stateId || selectedData?.state))
+      .map((entry) => ({ value: entry[activeMetricKey] })),
+  );
+  const peerAverage = peerComparison?.average;
+  const pressure = calculateCarbonPressure(selectedMetricValue, peerAverage);
+  const stateConfidence = calculateConfidence({
+    observationCount: usesClimateTrace ? selectedStateHistory.length : 1,
+    completeness: usesClimateTrace
+      ? (selectedStateHistory.length / Math.max(1, selectedYear - 2020))
+      : 1,
+    validationRate: 1,
+  });
+  const stateInsights = selectedData ? generateInsights({
+    entity: selectedStateName,
+    observations: usesClimateTrace ? selectedStateHistory : [],
+    currentValue: usesClimateTrace ? undefined : selectedMetricValue,
+    peerEntities: selectedStateHistory.at(-1)?.year === selectedYear || !usesClimateTrace
+      ? sorted.filter((entry) => (entry.stateId || entry.state) !== (selectedData.stateId || selectedData.state))
+        .map((entry) => ({ id: entry.stateId || entry.state, value: entry[activeMetricKey] }))
+      : [],
+    metricLabel: metric.label,
+    confidence: stateConfidence,
+  }) : [];
+  const stateAnomalies = usesClimateTrace
+    ? detectAnomalies(selectedStateHistory, { entity: selectedStateName, metric: metric.label })
+    : [];
+  const stateGrowthPercent = usesClimateTrace ? calculateGrowthRate(selectedStateHistory) : null;
   const tooltipState = hoveredState || selectedState;
   const tooltipData = valueForState(tooltipState);
-  const tooltipMetricValue = tooltipData && activeMetric !== 'co2Total'
-    ? tooltipData[activeMetric]
-    : null;
+  const tooltipMetricValue = tooltipData?.[activeMetricKey] ?? null;
   const tooltipStateName = boundaries.find((feature) => feature.properties['iso3166-2'] === tooltipState)?.properties.name;
 
   const handleMapKeyDown = (event, state) => {
@@ -238,7 +316,7 @@ export default function IndiaStateChart() {
       <div className="india-map-panel">
         <div className="research-panel-heading">
           <div>
-            <span className="section-index">STATE SNAPSHOT</span>
+            <span className="section-index">{usesClimateTrace ? `CLIMATE TRACE / ${selectedYear}` : 'SOURCE SNAPSHOT'}</span>
             <h3>{metric.label}</h3>
           </div>
           <span className="unit-note">{metric.unit}</span>
@@ -246,7 +324,7 @@ export default function IndiaStateChart() {
         {mapError ? <p role="alert">{mapError}</p> : boundaries.length === 0 ? (
           <p role="status">Loading state boundaries...</p>
         ) : (
-          <svg className="india-heatmap" viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="group" aria-label={`Map of Indian states shaded by ${metric.label}`}>
+          <svg className="india-heatmap" viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="group" aria-label={`Map of Indian states shaded by ${metric.label}`}>
             {mapModel.groups.map(({ id, name, shapes }) => {
               const stateData = valueForState(id);
               return (
@@ -256,8 +334,8 @@ export default function IndiaStateChart() {
                   className={`india-map-state${selectedState === id ? ' selected' : ''}`}
                   tabIndex="0"
                   role="button"
-                  aria-label={stateData && activeMetric !== 'co2Total'
-                    ? `${name}: ${stateData[activeMetric].toFixed(2)} ${metric.unit}`
+                  aria-label={Number.isFinite(stateData?.[activeMetricKey])
+                    ? `${name}: ${stateData[activeMetricKey].toFixed(2)} ${metric.unit}`
                     : `${name}: No data for ${metric.label}`}
                   onMouseEnter={() => setHoveredState(id)}
                   onMouseLeave={() => setHoveredState('')}
@@ -268,16 +346,19 @@ export default function IndiaStateChart() {
                   fill={fillForState(id)}
                 >
                   {shapes.map((shape) => <path key={shape.id} d={shape.path} />)}
+                  <title>{Number.isFinite(stateData?.[activeMetricKey])
+                    ? `${name}: ${stateData[activeMetricKey].toFixed(2)} ${metric.unit}`
+                    : `${name}: No data for ${metric.label}`}</title>
                 </g>
               );
             })}
           </svg>
         )}
         <div className="map-legend" aria-label="Emissions intensity legend">
-          {['Low', 'Medium', 'High', 'Very high'].map((label, index) => (
+          {['Very low', 'Low', 'Moderate', 'Elevated', 'High', 'Very high', 'Extreme'].map((label, index) => (
             <span className="legend-level" key={label}><i style={{ background: MAP_COLORS[index] }} />{label}</span>
           ))}
-          <span className="legend-unavailable"><i /> No data</span>
+          <span className="legend-unavailable"><i style={{ background: '#E5E7E3' }} /> No data</span>
         </div>
         <div className="map-state-readout" aria-live="polite">
           {tooltipState ? (
@@ -286,27 +367,29 @@ export default function IndiaStateChart() {
               <span className="map-value-readout">
                 {tooltipMetricValue !== null
                   ? `${tooltipMetricValue.toFixed(2)} ${metric.unit}`
-                  : activeMetric === 'co2Total'
-                    ? 'No total CO₂ data in the supplied dataset'
-                    : 'No data'}
-                <small>Year: not provided by the source dataset</small>
+                  : 'No data'}
+                <small>{usesClimateTrace ? `Reporting year: ${selectedYear} · Climate TRACE` : 'Reporting year not provided by source dataset'}</small>
               </span>
             </>
           ) : <span>Point to or select a state to inspect its value.</span>}
         </div>
+        {climateLoading && <p className="tc-map-data-status" role="status">Loading Climate TRACE state estimates for {selectedYear}…</p>}
+        {climateError && <p className="tc-error" role="alert">{climateError}</p>}
         <p className="map-source-note">
-          State boundaries: <a href="https://code.highcharts.com/mapdata/countries/in/in-all.geo.json" target="_blank" rel="noreferrer">Highcharts India admin-1 boundary data</a>, Copyright (c) Highsoft AS, based on <a href="https://openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>. Features are joined by ISO 3166-2 identifiers and projected with an Albers equal-area conic projection. The source includes Jammu and Kashmir and Ladakh as separate features. Emissions: CarbonEmissionIndia dataset. The supplied single-period snapshot has no reporting year.
+          State boundaries: <a href="https://code.highcharts.com/mapdata/countries/in/in-all.geo.json" target="_blank" rel="noreferrer">Highcharts India admin-1 boundary data</a>, Copyright (c) Highsoft AS, based on <a href="https://openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>. Features are joined by ISO 3166-2 identifiers and projected with an Albers equal-area conic projection. Colours are recalculated as seven quantile classes for the selected metric. {usesClimateTrace
+            ? <>Emissions: <a href="https://api.climatetrace.org/v7/docs/index.html" target="_blank" rel="noreferrer">Climate TRACE API v7</a>, admin-level non-forest CO₂e sector estimates for {selectedYear}. Areas unavailable from the source remain unfilled.</>
+            : 'Emissions: CarbonEmissionIndia per-capita snapshot. The supplied file has no reporting year or state totals.'}
         </p>
       </div>
 
       <div className="india-comparison-panel" id="india-state-comparison">
         <div className="research-panel-heading">
           <div>
-            <span className="section-index">STATE COMPARISON</span>
-            <h3>Reported per-capita indicators</h3>
+            <span className="section-index">STATE COMPARISON / {selectedYear}</span>
+            <h3>{usesClimateTrace ? 'Estimated annual emissions' : 'Reported per-capita indicators'}</h3>
           </div>
           <div className="chart-controls">
-            {METRICS.map((item) => (
+            {metrics.map((item) => (
               <button
                 key={item.key}
                 type="button"
@@ -318,19 +401,84 @@ export default function IndiaStateChart() {
             ))}
           </div>
         </div>
+        <div className="india-rankings" aria-label={`Top states by ${metric.label}`}>
+          <span className="section-index">TOP STATES / {metric.unit}</span>
+          {rankedStates.map((entry, index) => {
+            const stateId = entry.stateId || Object.entries(ISO_TO_TRUSTCARBON_STATE)
+              .find(([, stateName]) => normalizeState(stateName) === normalizeState(entry.state))?.[0];
+            return (
+              <button
+                type="button"
+                key={stateId || entry.state}
+                className={selectedState === stateId ? 'active' : ''}
+                onClick={() => stateId && setSelectedState(stateId)}
+              >
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <strong>{entry.state}</strong>
+                <b>{entry[activeMetricKey].toFixed(2)}</b>
+              </button>
+            );
+          })}
+        </div>
         {selectedState && (
           <div className="selected-state-note" role="status">
             <strong>{selectedStateName}</strong>
             <span>
               {selectedMetricValue !== null
                 ? `${selectedMetricValue.toFixed(2)} ${metric.unit}`
-                : activeMetric === 'co2Total'
-                  ? 'No total CO₂ data in the supplied dataset'
-                  : 'No data'}
+                : 'No data'}
             </span>
-            <span>Year: not provided by the source dataset</span>
+            <span>{usesClimateTrace ? `Reporting year: ${selectedYear} · Climate TRACE` : 'Reporting year not provided by source dataset'}</span>
             <button type="button" onClick={() => setSelectedState('')}>Clear selection</button>
           </div>
+        )}
+        {selectedState && (
+          <section className="tc-state-detail">
+            <div className="tc-panel-heading"><div><span className="tc-eyebrow">{usesClimateTrace ? 'SELECTED STATE / CLIMATE TRACE' : 'SELECTED STATE / SOURCE SNAPSHOT'}</span><h2>{selectedStateName}</h2></div><span className="tc-unit-tag">{usesClimateTrace ? `Reporting year ${selectedYear}` : 'Reporting year not provided'}</span></div>
+            <div className="tc-state-detail-metrics">
+              <div><span>{metric.label}</span><strong>{selectedMetricValue === null ? 'Unavailable' : `${selectedMetricValue.toFixed(2)} ${metric.unit}`}</strong></div>
+              <div><span>Rank by selected metric</span><strong>{selectedRank ? `${selectedRank.rank} of ${selectedRank.total}` : 'Unavailable'}</strong></div>
+              <div><span>Peer comparison</span><strong>{peerComparison ? `${peerComparison.relation} ${usesClimateTrace ? 'state average' : 'snapshot average'}` : 'Unavailable'}</strong></div>
+              {pressure !== null && <div><span>Relative to state average</span><strong>{pressure.toFixed(0)}%</strong></div>}
+            </div>
+            <div className="tc-country-signals">
+              <section>
+                <span className="tc-eyebrow">TREND AND ANOMALIES</span>
+                {usesClimateTrace ? (
+                  <>
+                    {historyLoading && <p role="status">Loading {selectedStateName} history…</p>}
+                    {historyError && <p className="tc-error" role="alert">{historyError}</p>}
+                    {selectedStateHistory.length > 1
+                      ? <p>Climate TRACE estimates changed {stateGrowthPercent === null ? 'n/a' : `${stateGrowthPercent.toFixed(1)}%`} between {selectedStateHistory[0].year} and {selectedStateHistory.at(-1).year}.</p>
+                      : <p>Insufficient historical observations are available for a trend calculation.</p>}
+                    {selectedStateHistory.length > 0 && (
+                      <div className="tc-sector-history">
+                        {selectedStateHistory.map((item) => (
+                          <div key={item.year}>
+                            <span>{item.year}</span>
+                            <span className="tc-ranking-bar"><i style={{ width: `${Math.max(2, item.value / Math.max(...selectedStateHistory.map((point) => point.value)) * 100)}%` }} /></span>
+                            <b>{item.value.toFixed(2)} Mt</b>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {stateAnomalies.map((item) => (
+                      <button className="tc-anomaly-jump" type="button" key={item.year} onClick={() => setSelectedYear(item.year)}>
+                        <strong>{item.year} anomaly</strong><span>{item.changePercent.toFixed(1)}% · {item.deviation.toFixed(2)}σ</span><small>{item.explanation}</small>
+                      </button>
+                    ))}
+                    {!stateAnomalies.length && <p>{selectedStateHistory.length < 6 ? 'At least six consecutive annual records are required for the configured rolling anomaly baseline.' : 'No statistical anomalies met the configured threshold in this history.'}</p>}
+                  </>
+                ) : <p>This local state file contains one undated observation per state. A historical trend, year-over-year change, and statistical anomaly cannot be calculated from a single snapshot.</p>}
+              </section>
+              <section>
+                <span className="tc-eyebrow">ENGINE-GENERATED INSIGHTS</span>
+                {stateInsights.length
+                  ? stateInsights.map((item, index) => <p key={`${item.type}-${item.metric?.year ?? index}`}><strong>{item.title}:</strong> {item.explanation} <small>Confidence {Math.round(item.confidence * 100)}%</small></p>)
+                  : <p>No peer-comparison insight threshold was met for this state.</p>}
+              </section>
+            </div>
+          </section>
         )}
         {sorted.length ? (
           <div className="india-chart">
@@ -340,21 +488,19 @@ export default function IndiaStateChart() {
                 <XAxis dataKey="state" stroke="var(--text-secondary)" fontSize={10} tickLine={false} angle={-35} textAnchor="end" />
                 <YAxis stroke="var(--text-secondary)" fontSize={10} fontFamily="var(--font-mono)" tickLine={false} />
                 <Tooltip content={<CustomTooltip metric={metric} />} />
-                <Bar dataKey={activeMetric} maxBarSize={28} fill={metric.color}>
+                <Bar dataKey={activeMetricKey} maxBarSize={28} fill={metric.color}>
                   {sorted.map((entry) => (
                     <Cell
-                      key={entry.state}
+                      key={entry.stateId || entry.state}
                       fill={metric.color}
-                      fillOpacity={!selectedState || normalizeState(ISO_TO_TRUSTCARBON_STATE[selectedState] || '') === normalizeState(entry.state) ? 1 : 0.28}
+                      fillOpacity={!selectedState || (entry.stateId ? selectedState === entry.stateId : normalizeState(ISO_TO_TRUSTCARBON_STATE[selectedState] || '') === normalizeState(entry.state)) ? 1 : 0.28}
                     />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        ) : (
-          <p className="country-empty-state">Total CO₂ is unavailable in the supplied per-capita snapshot. No state totals have been inferred.</p>
-        )}
+        ) : <p className="country-empty-state">No state comparison values are available.</p>}
         <p className="map-source-note">
           Source values are reproduced as supplied. The file has no reporting year or state total emissions. States and union territories without a matching source value are shown as unavailable.
         </p>

@@ -34,7 +34,9 @@ export function validateDataset(csvText, type, currentYear = new Date().getFullY
   }
 
   const seen = new Set();
-  const years = [];
+  let minYear = Infinity;
+  let maxYear = -Infinity;
+  let validRows = 0;
   const warnings = [];
   let unusuallyLargeValue = false;
 
@@ -66,9 +68,14 @@ export function validateDataset(csvText, type, currentYear = new Date().getFullY
     }
 
     const key = `${location.toLocaleLowerCase()}-${year}`;
-    if (seen.has(key)) errors.push(`Row ${rowNumber} duplicates ${location} in ${year}.`);
+    if (seen.has(key)) {
+      errors.push(`Row ${rowNumber} duplicates ${location} in ${year}.`);
+      return;
+    }
     seen.add(key);
-    years.push(year);
+    minYear = Math.min(minYear, year);
+    maxYear = Math.max(maxYear, year);
+    validRows += 1;
     if (emissions > 100000000) unusuallyLargeValue = true;
   });
 
@@ -77,8 +84,8 @@ export function validateDataset(csvText, type, currentYear = new Date().getFullY
     warnings.push('One or more emissions values are unusually large. They are retained for manual reviewer validation.');
   }
 
-  const yearRange = years.length
-    ? `${Math.min(...years)} to ${Math.max(...years)}`
+  const yearRange = validRows
+    ? `${minYear} to ${maxYear}`
     : '';
-  return { errors, warnings, yearRange, validRows: parsed.data.length };
+  return { errors, warnings, yearRange, validRows };
 }

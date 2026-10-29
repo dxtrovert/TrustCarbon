@@ -5,6 +5,7 @@ import Footer from './components/layout/Footer';
 import { useAuth } from './hooks/useAuth';
 import DashboardShell from './components/layout/DashboardShell';
 
+const SystemCheckPanel = lazy(() => import('./pages/SystemCheckPanel'));
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -60,6 +61,7 @@ function AppRoutes() {
               <Route path="explore/global" element={<GlobalExplorerPanel />} />
               <Route path="explore/india" element={<IndiaIntelligencePanel />} />
               <Route path="explore/industries" element={<IndustryPanel />} />
+              <Route path="data/system" element={<SystemCheckPanel />} />
               <Route path="data/sources" element={<DataSources />} />
               <Route path="intelligence/analysis" element={<AnalysisEnginePanel />} />
               <Route path="intelligence/anomalies" element={<AnomaliesPanel />} />

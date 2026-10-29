@@ -6,7 +6,7 @@ export function parseDatasetMetadata(description) {
   if (!description) return {};
   try {
     const parsed = JSON.parse(description);
-    return parsed.version === 1 ? parsed.metadata || {} : { description };
+    return parsed?.version === 1 ? parsed.metadata || {} : { description };
   } catch {
     return { description };
   }

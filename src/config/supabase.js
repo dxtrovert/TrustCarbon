@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -29,6 +30,7 @@ export const isSupabaseConfigured = !supabaseConfigurationError;
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabasePublishableKey, {
+      global: { fetch: fetchWithTimeout },
       auth: {
         autoRefreshToken: true,
         persistSession: true,

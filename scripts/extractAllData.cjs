@@ -14,7 +14,7 @@ fileContent.split('\n').forEach(line => {
     if (obj.type === 'USER_INPUT' && obj.content && obj.content.includes('Carbon_(CO2)_Emissions_by_Country.csv')) {
       promptText = obj.content;
     }
-  } catch(e){}
+  } catch{}
 });
 
 if (!promptText) {

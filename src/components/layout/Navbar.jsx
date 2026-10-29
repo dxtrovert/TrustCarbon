@@ -1,26 +1,18 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const NAV_SECTIONS = [
-  { label: 'Overview', href: '#overview' },
-  { label: 'Global', href: '#global-carbon-data' },
-  { label: 'India', href: '#india-states' },
-  { label: 'Industries', href: '#industries' },
-  { label: 'Data', href: '#data-table' },
-  { label: 'Sources', href: '#data-sources' },
+  { label: 'Overview', href: '/' },
+  { label: 'Global', href: '/explore/global' },
+  { label: 'India', href: '/explore/india' },
+  { label: 'Industries', href: '/explore/industries' },
+  { label: 'Sources', href: '/data/sources' },
 ];
 
 export default function Navbar({ isLoggedIn, isAdmin, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    if (location.pathname !== '/' || !location.hash) return;
-    document.querySelector(location.hash)?.scrollIntoView({ behavior: 'smooth' });
-  }, [location.pathname, location.hash]);
 
   const handleToggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
@@ -37,16 +29,6 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }) {
     }
   };
 
-  const scrollToSection = (e, href) => {
-    e.preventDefault();
-    closeMenu();
-    if (location.pathname !== '/') {
-      navigate(`/${href}`);
-      return;
-    }
-    document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <header className="navbar-wrapper">
       <div className="navbar">
@@ -60,13 +42,13 @@ export default function Navbar({ isLoggedIn, isAdmin, onLogout }) {
 
         <nav className={`nav-links ${menuOpen ? 'open' : ''}`} aria-label="Primary">
           {NAV_SECTIONS.map(s => (
-            <a
+            <Link
               key={s.href}
-              href={s.href}
-              onClick={(e) => scrollToSection(e, s.href)}
+              to={s.href}
+              onClick={closeMenu}
             >
               {s.label}
-            </a>
+            </Link>
           ))}
 
           {/* Mobile-only auth */}

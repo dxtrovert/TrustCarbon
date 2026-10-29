@@ -1,62 +1,62 @@
 # TrustCarbon
 
-TrustCarbon is a climate data publication and emissions analytics portal. It presents country and regional emissions records, an Indian state map, sector demo charts, source notes, personal activity tracking, and private dataset review.
-## Features and modules
+TrustCarbon is a web-based carbon emissions analysis and corporate disclosure platform. It brings historical emissions records, geographic insights and user-reviewed corporate disclosures into an interactive dashboard.
 
-- Country and regional emissions exploration, comparisons, and historical trends.
-- India state and union territory map joined through ISO identifiers.
-- Industry comparison and trend views using explicitly illustrative demo data.
-- Searchable data tables, source documentation, and methodology notes.
-- Supabase Auth accounts with persistent sessions and role-protected user/admin routes.
-- Private personal activity tracking and manual review for uploaded CSV datasets.
-- Data summaries and source information alongside the visualizations.
-- Reusable components, backend services, static data, utilities, and geographic boundaries organized by responsibility.
+## Project team
 
-Supabase handles authentication, PostgreSQL data, and private dataset file storage. The bundled country and regional emissions datasets remain static frontend data and are not uploaded to Supabase.
+**Group Number: 39**
+
+- Jainam Bhavsar
+- Adil Khan
+- Aditya Chavan
+
+The project abstract is available at `output/pdf/TrustCarbon_Abstract_Group_39.pdf`.
+
+## Features
+
+- Country emissions exploration, historical trend charts, rankings and comparisons.
+- Indian state and union territory exploration with Climate TRACE estimates from 2021 onward.
+- Sector comparisons and named-facility emissions estimates with source attribution.
+- Carbon Time Machine with year selection, playback, baseline comparisons and country rankings.
+- Statistical anomaly screening and transparent source-assessment rubrics.
+- User-defined emissions reduction scenarios based on historical values.
+- Company Monitor with user-confirmed BRSR metrics, source citations and recommendations.
+- Local BRSR PDF text extraction with page-level evidence and reporting-column review.
+- Configurable in-app threshold rules with evidence-backed alert history.
+- Corporate report downloads in HTML and browser printing to PDF.
+- Benchmark comparisons and restoration-area scenarios using user-entered assumptions.
+- Supabase authentication, personal activity tracking and private dataset submission/review.
 
 ## Technology stack
 
-- React 19 and React Router 7
-- Vite 8 for development and production builds
-- Supabase Auth, PostgreSQL, and Storage via `@supabase/supabase-js`
-- Recharts for data visualization
-- Oxlint for static analysis
+- React 19, React Router 7 and Vite 8
+- Recharts for interactive visualizations
+- Supabase Auth, PostgreSQL and Storage
+- PDF.js for local document text extraction
+- Oxlint and Vitest for development checks
 
 ## Project structure
 
 ```text
-public/                     Static assets served by Vite
-  assets/                   Fingerprint logo and India boundary GeoJSON
-  data/                     Industry demo CSV
 src/
-  components/
-    charts/                 Emissions, regional, comparison charts and chart shell
-    datasets/               Dataset submission interface
-    layout/                 Navigation and footer
-    maps/                   India state map and map-specific rendering
-    ui/                     Shared form controls, headings, and KPI primitives
-  config/                   Supabase client and environment configuration
-  contexts/                 Authentication provider and shared auth context
-  data/                     Source CSVs, static datasets, and derived data
-  hooks/                    React hooks, including useAuth
-  pages/                    Route-level screens
-  services/                 Auth, activity, dataset, and admin review operations
-  styles/                   Shared global styles
-  utils/                    CSV parsing, validation, and formatting
-  App.jsx                   Routes and application shell
-  main.jsx                  Frontend entry point
+  analysis/       Framework-independent calculations and analysis fixtures
+  components/     Shared UI, charts, maps and corporate interfaces
+  contexts/       Authentication, dashboard and corporate state
+  data/           Bundled datasets and geographic mappings
+  hooks/          Shared React hooks
+  pages/          Route-level dashboard screens
+  services/       Source integrations, reporting and Supabase operations
+  styles/         Shared styling
+  utils/          Parsing, formatting and validation
+public/           Static assets and supporting data
 supabase/
-  migrations/               PostgreSQL schema, RLS, and Storage policies
-scripts/                     Legacy standalone dataset/transcript utilities
+  migrations/     Database schema and access policies
+output/pdf/       Project abstract
 ```
 
-Pages stay as separate route-level modules in `src/pages/`. The application shell wires routes; components are grouped by their role. Supabase queries remain in `src/services/`, reusable CSV parsing and validation live in `src/utils/`, and static source datasets remain in `src/data/` or `public/data/`. Scripts are standalone utilities, not runtime modules.
+## Setup
 
-The India map uses the 36-feature Highcharts India admin-1 GeoJSON boundary layer based on OpenStreetMap. Its state and union territory features are joined by their `iso3166-2` identifiers, not by display labels, and the geometries are projected using an Albers equal-area conic projection. Jammu and Kashmir and Ladakh remain separate features from the source. Map attribution is © Highsoft and [OpenStreetMap contributors](https://openstreetmap.org/copyright). This is only a geographic outline layer. Emissions values come from the existing CarbonEmissionIndia data, and states without a matching value are shown as unavailable.
-
-## Setup and execution
-
-Requirements: Node.js 20.19+ or 22.12+ and npm.
+Use Node.js 20.19+ or 22.12+ and npm.
 
 ```powershell
 npm ci
@@ -64,74 +64,65 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Set the following values in `.env.local` from your Supabase project settings (the publishable key is safe for browser use; never put a service-role key in the frontend):
+Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the local environment file using your Supabase project settings.
 
-Vite loads `.env.local` from the project root; it does not load `.env.example`.
+Apply these migrations in order through the Supabase SQL Editor:
 
-```env
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
-```
+1. `supabase/migrations/20261008000000_initial_schema.sql`
+2. `supabase/migrations/20261028000000_alert_rules.sql`
+3. `supabase/migrations/20261029000000_activity_delete.sql`
 
-Run `supabase/migrations/20261008000000_initial_schema.sql` in the Supabase Dashboard SQL Editor. This creates the `profiles`, `activities`, and `datasets` tables, their constraints and indexes, row-level security policies, and the private `trustcarbon-datasets` Storage bucket. If using the Supabase CLI, initialize and link the project first, then apply the migration with `supabase db push`. `profiles` rows are created automatically when an Auth user signs up; users cannot set or change their own role.
+The first migration sets up profiles, activities, datasets and private Storage access. The second adds user-owned alert rules and events, ownership policies, company indexes and duplicate-event protection.
 
-To designate an administrator, first create the account through the app, then run this as a trusted project owner in the Supabase SQL Editor, replacing the email:
-
-```sql
-update public.profiles
-set role = 'admin'
-where email = 'admin@example.com';
-```
-
-The `datasets.file_url` field stores a private Storage object path, not a public URL. Downloads use short-lived signed URLs after Storage RLS verifies ownership or admin access. Submitted files remain pending and are never added to the public static datasets automatically.
-
-Open the local URL printed by Vite. For a production build and local preview:
-
-```bash
+```powershell
 npm run build
 npm run preview
 ```
 
-Run static analysis with `npm run lint`. There is currently no automated test script.
+Development commands include `npm run lint` and `npm test`.
 
-## Authentication and data workflows
+## Data and analysis
 
-- Signup, login, logout, persistent sessions, profile roles, and protected routes are coordinated by `src/contexts/AuthContext.jsx` and `src/hooks/useAuth.js`; Supabase operations are in `src/services/authService.js`.
-- Users can create personal carbon activities through `src/services/activityService.js`.
-- CSV submissions are validated before upload, stored in the private Supabase Storage bucket, and recorded with `pending` status. The uploader can see their own submissions; DBAs review them through the admin screen.
-- Rejected submissions require a review reason. Pending and rejected files remain private. Approval makes a submission eligible for a separate publication decision, but does not automatically publish or merge it into static public datasets.
-- RLS and Storage policies in the migration enforce access independently from frontend route checks.
+Our World in Data supplies country-level historical CO2 observations. Climate TRACE supplies source-labelled sector, facility and Indian state emissions estimates. The country explorer also supports a labelled bundled CSV fallback. Source and reporting-period information accompany the views.
 
-CSV submissions use one location column plus `Year,CO2_Emissions,Unit,Source`. The location column is `Country`, `State`, `Region`, or `Industry`, depending on the selected dataset type. Use the in-app template and validation feedback before submitting.
+Time Machine presents historical observations with selected-year values, previous-observation changes, baseline differences and cumulative net change. Annual comparisons use consecutive years. Gaps retain their unavailable status, preserving the source record. Cumulative net change sums annual differences across a complete baseline-to-selection period.
 
-The industry demo data is located at `public/data/industry_demo.csv`. Its source is `Illustrative demo dataset`. Values are not verified real-world measurements and must not be represented as official TrustCarbon data.
+Source assessments use a transparent TrustCarbon rubric: source credibility 25%, coverage 20%, completeness 20%, freshness 15% and validation 20%. Assigned credibility values are displayed alongside the scores. Corporate pressure scores use a weighted mean of the available dimensions.
 
-### Backend smoke test
+## Corporate workflow
 
-Use a configured Supabase project and the local app to exercise the end-to-end workflows:
+1. Choose a company and reporting year.
+2. Select a local BRSR PDF and review its extracted text candidates.
+3. Confirm the appropriate metric, page and reporting column.
+4. Explore disclosures, recommendations and user-configured benchmarks.
+5. Create threshold rules using the metric's exact reporting unit.
+6. Review triggered events and their supporting evidence.
+7. Download a source-labelled HTML report or choose Save as PDF through the browser print dialog.
 
-1. Create a normal account, confirm its email if email confirmation is enabled, log in, refresh the page, and verify the session remains active. Log out and verify `/dashboard` redirects to login.
-2. Log in as a normal user, add an activity, refresh the dashboard, and verify its totals and recent activity. Upload a CSV and verify its submission is `pending` and downloadable only while signed in as its owner.
-3. Promote a second account to admin using the SQL above. Log in as that account, open `/admin`, download a pending CSV, approve one submission and reject another with a reason. Verify review status, reviewer, and timestamp in `public.datasets`.
-4. Verify the normal user cannot open `/admin`, review a dataset, read another user's activity, or update `profiles.role`. RLS protects these operations even when requests are made outside the app.
+Corporate documents and extracted metrics are held in browser-session state. Signed-in users can save private threshold rules and event citations through Supabase. Guest access supports session-held rules and history. Threshold evaluation takes place as company data or rules are loaded and updated. Confirmed source rows, matching reporting periods and compatible units determine which metrics qualify for evaluation.
 
-The app's sign-up/login/logout, activity, upload, and review paths require a live Supabase project to fully exercise; the local build and lint checks do not substitute for that integration test.
+Company disclosures, facility estimates, calculated subtotals, historical observations and user-defined scenarios retain distinct labels. The restoration scenario uses entered land area and planting density to estimate a tree count. The optional email tool prepares a draft for the recipient entered by the user.
 
-## Data sources
+## Account and dataset workflows
 
-The checked-in files under `src/data/` include country-level CO₂ emissions (`Carbon_(CO2)_Emissions_by_Country.csv`, 1990 to 2019) and India state-level per-capita emissions (`rawIndiaData.csv`, a single-period snapshot), along with derived JavaScript datasets and transformations in `realData.js`. `public/data/industry_demo.csv` contains 90 illustrative values for six sectors from 2010 to 2024. It is labelled demo data, is not verified, and is not official TrustCarbon emissions data. Demo values must not be used as official figures. Source labels and coverage are displayed in the application; consult the dataset files and their original provider documentation for licensing, methodology, and attribution before redistribution or production use.
+Supabase coordinates account sessions and role-protected routes. Users can record personal carbon activities and submit CSV datasets for administrative review. Row-level security applies ownership rules to private records, including alert rules and history. Dataset downloads use private Storage paths and signed access links.
 
-The supplied India emissions file has no reporting year or total state emissions, so the map reports only available per-capita metrics and does not infer totals. The northern extent shown follows the selected Highcharts/OpenStreetMap admin-1 geometry; no disputed or neighboring territory is manually added or reassigned.
+CSV submissions use a location column (`Country`, `State`, `Region` or `Industry`) together with `Year,CO2_Emissions,Unit,Source`. The upload interface provides validation and template guidance.
 
-The scripts in `scripts/` are legacy transcript/dataset extraction utilities. Some expect a transcript at a machine-specific local path, so they are not part of the clean-install application workflow.
+## Source attribution
+
+- Our World in Data: historical country CO2 and per-capita records.
+- Climate TRACE: sector, named-source and India admin-level emissions estimates.
+- User-supplied BRSR documents: confirmed corporate disclosures with page and reporting-column citations.
+- Highcharts/OpenStreetMap: India admin-1 boundary geometry and geographic attribution.
+- Bundled country CSV and labelled industry demonstration data: supporting exploration datasets.
 
 ## Git workflow
 
-- `main` is the stable, demo-ready branch.
-- `develop` is the integration branch. Feature and fix work should branch from `develop`, then be reviewed and merged back into `develop`. Promote verified releases from `develop` to `main`.
-- Use focused names such as `feature/dataset-upload`, `fix/india-map`, or `refactor/module-structure`. Do not create a branch for every tiny change.
-- Commit messages use `type: short description`. Types: `feat` for functionality, `fix` for bug fixes, `refactor` for behavior-preserving structure changes, `style` for presentation, `docs` for documentation, `test` for tests, and `chore` for configuration or maintenance.
-- Keep commits focused. Examples: `refactor: organize service and UI modules`, `fix: correct India map state matching`, `docs: clarify local Supabase setup`.
-- `.gitignore` excludes dependencies, build output, and local environment files. Keep `.env.example` with placeholders and never commit `.env.local` or secret keys.
+Use focused commits with messages in the form `type: short description`. The project uses `develop` for integration and `main` for stable releases. Local environment files, dependencies and generated build output are covered by `.gitignore`.
 
-The application uses Vite, React, and Oxlint as described above.
+## Phase IV evaluation pack
+
+Run `npm run verify:phase4` and then `npm run docs:phase4`. Open `output/phase4/PRESENTATION.html` for the 10-slide browser presentation (arrow keys; N for speaker notes), `REPORT.html` for the printable report, and `DEMO_GUIDE.html` for the timed demonstration. The report can be saved as PDF using the browser print dialog.
+
+`output/phase4/TESTING.html` lists live acceptance checks and expected outcomes. Complete those against your configured Supabase project; automated service tests use mocks. Apply the activity-delete migration before demonstrating deletion. The Connection Checks screen is at `/data/system`.
