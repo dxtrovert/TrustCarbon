@@ -126,3 +126,5 @@ Use focused commits with messages in the form `type: short description`. The pro
 Run `npm run verify:phase4` and then `npm run docs:phase4`. Open `output/phase4/PRESENTATION.html` for the 10-slide browser presentation (arrow keys; N for speaker notes), `REPORT.html` for the printable report, and `DEMO_GUIDE.html` for the timed demonstration. The report can be saved as PDF using the browser print dialog.
 
 `output/phase4/TESTING.html` lists live acceptance checks and expected outcomes. Complete those against your configured Supabase project; automated service tests use mocks. Apply the activity-delete migration before demonstrating deletion. The Connection Checks screen is at `/data/system`.
+
+
