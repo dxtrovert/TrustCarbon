@@ -2,16 +2,6 @@
 
 TrustCarbon is a web-based carbon emissions analysis and corporate disclosure platform. It brings historical emissions records, geographic insights and user-reviewed corporate disclosures into an interactive dashboard.
 
-## Project team
-
-**Group Number: 39**
-
-- Jainam Bhavsar
-- Adil Khan
-- Aditya Chavan
-
-The project abstract is available at `output/pdf/TrustCarbon_Abstract_Group_39.pdf`.
-
 ## Features
 
 - Country emissions exploration, historical trend charts, rankings and comparisons.
